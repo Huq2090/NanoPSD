@@ -1,12 +1,3 @@
-def segment_particles(binary_image, min_size=3):
-    cleaned = morphology.remove_small_objects(binary_image, min_size=min_size)
-    filled = ndimage.binary_fill_holes(cleaned)
-    labeled, _ = ndimage.label(filled)
-    regions = measure.regionprops(labeled)
-    return labeled, regions
-
-
-
 from skimage import measure, morphology  # Import particle measurement and morphological tools from scikit-image
 from scipy import ndimage  # Import functions for binary image manipulation from SciPy
 
@@ -44,8 +35,8 @@ def segment_particles(binary_image, min_size=3):
     # Step 3: Label connected components in the binary image
     # Each group of connected True pixels gets a unique label: 1, 2, 3, ..., N
     # Background pixels (False) are labeled as 0
-    # `num_particles` counts the number of detected objects
-    labeled, num_particles = ndimage.label(filled)
+    # '_' represents `num_particles` counts the number of detected objects
+    labeled, _ = ndimage.label(filled)
 
     # Step 4: Compute region properties of the labeled image
     # This returns measurements like area, centroid, bounding box, etc., for each particle

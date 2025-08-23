@@ -101,7 +101,7 @@ python3 main.py --mode single --input ./single_image.png --scale 200
 1. Place multiple SEM/TEM images in a folder (e.g., `batch_images/`).  
 2. Run:  
 ```bash
-python3 main.py --mode single --input ./batch_images --scale 200
+python3 main.py --mode batch --input ./batch_images --scale 200
 ```
 
 ---

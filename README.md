@@ -16,6 +16,18 @@ It supports both **single-image** and **batch image** analysis, providing a modu
 
 ---
 
+## NanoPSD Pipeline
+The processing workflow follows these main steps:
+
+1. **Input Acquisition** – SEM/TEM image(s) provided as single or batch mode.  
+2. **Preprocessing** – Contrast enhancement (CLAHE, filters) to improve particle visibility.  
+3. **Segmentation** – Classical thresholding (Otsu) to identify particle regions.  
+4. **Scale Bar & Text Exclusion** – Automatic masking of scale bar and annotation text.  
+5. **Particle Measurement** – Extract particle sizes and compute statistics.  
+6. **Visualization & Export** – Histograms, CSV tables, and segmented overlay images.  
+
+---
+
 ## Dependencies
 NanoPSD requires the following Python libraries:  
 - `opencv-python`  
@@ -151,43 +163,12 @@ This project is licensed under the **MIT License** – see the [LICENSE](LICENSE
 ## Citation
 If you use NanoPSD in academic work, please cite:  
 
-*Huq, F. (2025). NanoPSD: Automated Nanoparticle Size Distribution Analysis from Electron Microscopy Images.*  
+*Huq, MF. (2025). NanoPSD: Automated Nanoparticle Size Distribution Analysis from Electron Microscopy Images.*  
 
 ---
 
 
-# NanoPSD Pipeline
-
-This production-ready Python project extracts particle size distributions from SEM images.
-Features:
-- Automated scale bar detection
-- Particle segmentation using classical methods
-- Size extraction and visualization
-- Modular and object-oriented design
-
-## Usage
-1. Place your image in `data/raw/` as `SEM_nano_particles.png`
-2. Adjust scale bar length in `main.py`
-3. Run:
-```bash
-python main.py
-```
 
 
-## Setup Instructions
-
-### 1. Create and Activate Conda Environment
-
-```bash
-conda create -n imglab python=3.10
-conda activate imglab 
-conda install -c conda-forge opencv numpy matplotlib scikit-image scipy pandas pillow
-```
-
-## To Recreate Environment 
-```bash
-Recreate environment using the following command: 
-conda env create -f imglab_environment.yml
-```
 
  

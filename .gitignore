@@ -1,4 +1,76 @@
-*.png
-/NanoPSD/NanoPSD/outputs/figures/
-/NanoPSD/NanoPSD/outputs/results/
+# ----------------------------
+# Python cache & bytecode
+# ----------------------------
+__pycache__/
+*.py[cod]
+*$py.class
 
+# ----------------------------
+# Virtual environments
+# ----------------------------
+.venv/
+venv/
+env/
+ENV/
+.conda/
+.conda_env/
+*.egg-info/
+.eggs/
+
+# ----------------------------
+# Jupyter & IPython
+# ----------------------------
+.ipynb_checkpoints/
+*.ipynb_convert
+.profile_default/
+ipython_config.py
+
+# ----------------------------
+# VSCode / IDE settings
+# ----------------------------
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# ----------------------------
+# Build / Packaging
+# ----------------------------
+build/
+dist/
+*.egg
+*.manifest
+*.spec
+
+# ----------------------------
+# Logs / Outputs
+# ----------------------------
+*.log
+*.out
+outputs/
+results/
+reports/
+
+# ----------------------------
+# Data files (large or raw datasets)
+# ----------------------------
+data/
+*.csv
+*.tsv
+*.dat
+*.h5
+*.hdf5
+*.npz
+*.npy
+*.mat
+*.tif
+*.tiff
+
+# ----------------------------
+# Temporary / Misc
+# ----------------------------
+.DS_Store
+Thumbs.db
+*.bak
+*.swp
+*.tmp

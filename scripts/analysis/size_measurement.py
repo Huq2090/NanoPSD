@@ -5,7 +5,12 @@ import cv2
 import matplotlib.pyplot as plt
 from skimage.draw import ellipse_perimeter
 
-def measure_particles(regions, labeled_image, original_image, nm_per_pixel, min_diam_nm=5, max_diam_nm=35):
+CONTOUR_THICKNESS = 1  # Thickness of contour lines when drawing
+
+
+def measure_particles(
+    regions, labeled_image, original_image, nm_per_pixel, min_diam_nm=5, max_diam_nm=35
+):
     """
     Measures the diameters of segmented nanoparticles and overlays contours on the original image.
 
@@ -27,7 +32,7 @@ def measure_particles(regions, labeled_image, original_image, nm_per_pixel, min_
     results : list of float
         Measured diameters (in nanometers) of valid particles.
     """
-    
+
     # Convert grayscale image to BGR (3-channel) so we can draw colored contours
     true_contour_img = cv2.cvtColor(original_image, cv2.COLOR_GRAY2BGR)
     circular_img = true_contour_img.copy()
@@ -62,34 +67,40 @@ def measure_particles(regions, labeled_image, original_image, nm_per_pixel, min_
             # Convert boolean mask to uint8 (0 or 1) so OpenCV can process it
             region_mask = (labeled_image == region.label).astype(np.uint8)
 
-             # --- 1. True Contour (in BLUE) ---
+            # --- 1. True Contour (in BLUE) ---
             # Find contours in the binary mask
             # Since we're looking at one particle at a time, there should typically be just one contour
             # cv2.RETR_EXTERNAL: retrieve only outer contours (ignores internal holes)
             # cv2.CHAIN_APPROX_SIMPLE: compresses contour points (saves memory)
-            contours, _ = cv2.findContours(region_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            contours, _ = cv2.findContours(
+                region_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+            )
             # Draw the contours on the image
             # -1 indicates all contours found
-            # (255, 0, 0) sets the contour color to blue (in BGR format)
+            # (0, 0, 255) sets the contour color to red (in BGR format)
             # Thickness of 1 pixel
-            cv2.drawContours(true_contour_img, contours, -1, (255, 0, 0), 1)
-            cv2.drawContours(combined_img, contours, -1, (255, 0, 0), 1)
+            cv2.drawContours(
+                true_contour_img, contours, -1, (255, 0, 0), CONTOUR_THICKNESS
+            )
+            cv2.drawContours(combined_img, contours, -1, (255, 0, 0), CONTOUR_THICKNESS)
 
-            # --- 2. Circular Equivalent Contour (in GREEN) ---
+            # --- 2. Circular Equivalent Contour (in RED) ---
             d_px = region.equivalent_diameter
             y, x = region.centroid
             rr, cc = ellipse_perimeter(int(y), int(x), int(d_px / 2), int(d_px / 2))
             rr = np.clip(rr, 0, original_image.shape[0] - 1)
             cc = np.clip(cc, 0, original_image.shape[1] - 1)
-            circular_img[rr, cc] = (0, 255, 0)
-            combined_img[rr, cc] = (0, 255, 0)
+            circular_img[rr, cc] = (0, 0, 255)
+            combined_img[rr, cc] = (0, 0, 255)
 
-            # --- 3. Elliptical Equivalent Contour (in RED) ---
+            # --- 3. Elliptical Equivalent Contour (in PINK) ---
             for contour in contours:
                 if len(contour) >= 5:
                     ellipse = cv2.fitEllipse(contour)
-                    cv2.ellipse(elliptical_img, ellipse, (0, 0, 255), 1)
-                    cv2.ellipse(combined_img, ellipse, (0, 0, 255), 1)
+                    cv2.ellipse(
+                        elliptical_img, ellipse, (255, 0, 255), CONTOUR_THICKNESS
+                    )
+                    cv2.ellipse(combined_img, ellipse, (255, 0, 255), CONTOUR_THICKNESS)
 
             # Add the diameter to the result list
             diameters_pixels.append(d_px)
@@ -116,6 +127,7 @@ def measure_particles(regions, labeled_image, original_image, nm_per_pixel, min_
     # Return the list of diameters
     return diameters_nm, diameters_pixels, centroids
 
+
 def export_to_latex(diameters, image_path):
     """
     Generates a LaTeX summary table of particle diameter statistics and writes it to a .tex file.
@@ -127,7 +139,7 @@ def export_to_latex(diameters, image_path):
     image_path : str
         Path to the original image used for naming the output summary file.
     """
-    
+
     import os
     import pandas as pd
     import numpy as np
@@ -140,14 +152,18 @@ def export_to_latex(diameters, image_path):
     stats = describe(diameters)
 
     # Construct a DataFrame with one row of summary statistics
-    summary = pd.DataFrame([{
-        "Image": base,
-        "Count": stats.nobs,                                 # Number of particles
-        "Mean": round(stats.mean, 2),                        # Mean diameter
-        "Std Dev": round(np.sqrt(stats.variance), 2),        # Standard deviation
-        "Min": round(stats.minmax[0], 2),                    # Minimum diameter
-        "Max": round(stats.minmax[1], 2)                     # Maximum diameter
-    }])
+    summary = pd.DataFrame(
+        [
+            {
+                "Image": base,
+                "Count": stats.nobs,  # Number of particles
+                "Mean": round(stats.mean, 2),  # Mean diameter
+                "Std Dev": round(np.sqrt(stats.variance), 2),  # Standard deviation
+                "Min": round(stats.minmax[0], 2),  # Minimum diameter
+                "Max": round(stats.minmax[1], 2),  # Maximum diameter
+            }
+        ]
+    )
 
     # Define output .tex file path
     latex_path = f"outputs/results/{base}_summary.tex"

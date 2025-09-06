@@ -24,14 +24,26 @@ from typing import Tuple
 
 # Import project-specific modules from their respective paths
 from utils.scale_bar import detect_scale_bar_length  # Detects scale bar in pixels
-from scripts.preprocessing.clahe_filter import preprocess_image  # Enhances image using CLAHE and other filters
-from scripts.segmentation.otsu_impl import OtsuSegmenter  # Classical Otsu-based segmenter for particle segmentation
-from scripts.analysis.size_measurement import measure_particles, export_to_latex  # Measures particle sizes and exports
-from scripts.visualization.plotting import plot_results  # Plots size distribution results
+from scripts.preprocessing.clahe_filter import (
+    preprocess_image,
+)  # Enhances image using CLAHE and other filters
+from scripts.segmentation.otsu_impl import (
+    OtsuSegmenter,
+)  # Classical Otsu-based segmenter for particle segmentation
+from scripts.analysis.size_measurement import (
+    measure_particles,
+    export_to_latex,
+)  # Measures particle sizes and exports
+from scripts.visualization.plotting import (
+    plot_results,
+)  # Plots size distribution results
 
 # Set up basic logging configuration
 # This will show timestamps, logging levels, and messages in console
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
+
 
 class NanoparticleAnalyzer:
     """Run the classical PSD pipeline on one image or a folder of images.
@@ -49,7 +61,7 @@ class NanoparticleAnalyzer:
     min_size_px : int, default 3
         Minimum connected-component size (in pixels) to keep during segmentation.
     mode : str, default "classical"
-        Segmentation mode selector. Only "classical" is implemented now. 
+        Segmentation mode selector. Only "classical" is implemented now.
     Later:
         "ai" for AI-only, "both" to run both, "compare" to run both and compare results.
     """
@@ -68,17 +80,16 @@ class NanoparticleAnalyzer:
         self.batch_mode = bool(batch)
         self.extensions = tuple(extensions)
         self.min_size_px = int(min_size_px)
-        self.mode = mode # Mode of analysis: 'classical', 'ai', 'both', 'compare'
+        self.mode = mode  # Mode of analysis: 'classical', 'ai', 'both', 'compare'
 
         # Guard: only classical is implemented right now
         if self.mode != "classical":
             raise NotImplementedError(
                 f"mode='{self.mode}' not implemented yet; use 'classical' for now"
-        )
+            )
 
         # Classical segmenter wrapped behind an interface
         self.segmenter = OtsuSegmenter(min_size=self.min_size_px)
-
 
     # ----------------------------
     # Public API
@@ -95,7 +106,7 @@ class NanoparticleAnalyzer:
                 self._process_one(img)
         else:
             self._process_one(self.image_path)
-    
+
     # ----------------------------
     # Internal helpers
     # ----------------------------
@@ -128,7 +139,7 @@ class NanoparticleAnalyzer:
 
             # --- Step 4: Measure diameters in nm and overlay QA drawings (if any) ---
             diameters_nm, overlay_image, df = measure_particles(
-                regions, labeled, original, nm_per_pixel
+                regions, labeled, original, nm_per_pixel, img_path
             )
             logging.info(f"Measured {len(diameters_nm)} particles (post-filter).")
 

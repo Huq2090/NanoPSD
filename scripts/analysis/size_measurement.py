@@ -1,4 +1,5 @@
 # Import required libraries
+import os
 import numpy as np
 import pandas as pd
 import cv2
@@ -9,7 +10,13 @@ CONTOUR_THICKNESS = 1  # Thickness of contour lines when drawing
 
 
 def measure_particles(
-    regions, labeled_image, original_image, nm_per_pixel, min_diam_nm=5, max_diam_nm=35
+    regions,
+    labeled_image,
+    original_image,
+    nm_per_pixel,
+    image_path,
+    min_diam_nm=5,
+    max_diam_nm=35,
 ):
     """
     Measures the diameters of segmented nanoparticles and overlays contours on the original image.
@@ -107,18 +114,26 @@ def measure_particles(
             diameters_nm.append(d_nm)
             centroids.append(region.centroid)
 
-    # Save the final image with all contour types
-    # Save all images
-    cv2.imwrite("outputs/figures/true_contours.png", true_contour_img)
-    cv2.imwrite("outputs/figures/circular_equivalent.png", circular_img)
-    cv2.imwrite("outputs/figures/elliptical_equivalent.png", elliptical_img)
-    cv2.imwrite("outputs/figures/all_contour_types.png", combined_img)
+    # Save images using original filename + suffix, preserving original extension
+    os.makedirs("outputs/figures", exist_ok=True)
+    stem = os.path.splitext(os.path.basename(image_path))[0]  # e.g., "SEM_Sample_Image"
+    ext = os.path.splitext(image_path)[1]  # e.g., ".tif"
+
+    true_path = f"outputs/figures/{stem}_true_contours{ext}"
+    circ_path = f"outputs/figures/{stem}_circular_equivalent{ext}"
+    ell_path = f"outputs/figures/{stem}_elliptical_equivalent{ext}"
+    all_path = f"outputs/figures/{stem}_all_contour_types{ext}"
+
+    cv2.imwrite(true_path, true_contour_img)
+    cv2.imwrite(circ_path, circular_img)
+    cv2.imwrite(ell_path, elliptical_img)
+    cv2.imwrite(all_path, combined_img)
 
     print("Saved all contour types:")
-    print(" - outputs/figures/true_contours.png")
-    print(" - outputs/figures/circular_equivalent.png")
-    print(" - outputs/figures/elliptical_equivalent.png")
-    print(" - outputs/figures/all_contour_types.png")
+    print(" -", true_path)
+    print(" -", circ_path)
+    print(" -", ell_path)
+    print(" -", all_path)
 
     # Convert the results to a DataFrame and save as CSV
     df = pd.DataFrame({"Diameter (nm)": diameters_nm})

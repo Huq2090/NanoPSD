@@ -4,3 +4,6 @@ matplotlib
 scikit-image
 scipy
 pandas
+# OCR (optional)
+pytesseract
+easyocr

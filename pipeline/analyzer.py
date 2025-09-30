@@ -23,7 +23,11 @@ from glob import glob
 from typing import Tuple
 
 # Import project-specific modules from their respective paths
-from utils.scale_bar import detect_scale_bar_length  # Detects scale bar in pixels
+from utils.scale_bar import (
+    detect_scale_bar_length,
+    detect_scale_bar,
+    detect_scale_label,  # Hybrid detector + OCR
+)
 from scripts.preprocessing.clahe_filter import (
     preprocess_image,
 )  # Enhances image using CLAHE and other filters
@@ -122,16 +126,48 @@ class NanoparticleAnalyzer:
             base = os.path.basename(img_path)
             logging.info(f"Processing: {base}")
 
-            # --- Step 1: Detect scale bar length in pixels and compute calibration ---
-            scale_bar_px, _ = detect_scale_bar_length(img_path)
-            nm_per_pixel = self._compute_nm_per_pixel(self.scale_bar_nm, scale_bar_px)
+            # --- Step 1: Detect scale bar (px) + bbox/mask; OCR label if scale not provided ---
+            scale_bar_px, bar_bbox, bar_mask, _ = detect_scale_bar(
+                img_path, save_debug=True, debug_dir="outputs/figures"
+            )
+
+            # Prefer CLI-provided scale if positive; otherwise attempt OCR
+            eff_scale_nm = (
+                float(self.scale_bar_nm)
+                if getattr(self, "scale_bar_nm", None) is not None
+                else None
+            )
+            if (eff_scale_nm is None) or (eff_scale_nm <= 0):
+                try:
+                    ocr_nm = detect_scale_label(
+                        img_path, bar_bbox, save_debug=True, debug_dir="outputs/figures"
+                    )
+                    if ocr_nm:
+                        eff_scale_nm = float(ocr_nm)
+                except Exception:
+                    pass
+
+            # Final guard: must have a valid scale in nm at this point
+            if (eff_scale_nm is None) or (eff_scale_nm <= 0):
+                raise ValueError(
+                    "No valid scale value found (neither CLI --scale nor OCR)."
+                )
+
+            nm_per_pixel = self._compute_nm_per_pixel(eff_scale_nm, scale_bar_px)
             logging.info(
-                f"Calibration: {nm_per_pixel:.4f} nm/pixel "
-                f"(scale bar: {scale_bar_px} px for {self.scale_bar_nm} nm)"
+                f"Calibration: {nm_per_pixel:.4f} nm/pixel (bar: {scale_bar_px} px, value: {eff_scale_nm} nm)"
             )
 
             # --- Step 2: Preprocess image -> binary mask ---
             binary, original = preprocess_image(img_path)
+
+            # Mask out the scale bar region so it's never counted as a particle
+            try:
+                if "bar_mask" in locals() and bar_mask is not None:
+                    binary = binary.copy()
+                    binary[bar_mask > 0] = False
+            except Exception:
+                pass
 
             # --- Step 3: Segment particles (Classical Otsu via interface) ---
             labeled, regions = self.segmenter.segment(binary)

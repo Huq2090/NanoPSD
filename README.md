@@ -1,17 +1,17 @@
 # NanoPSD
 **Software Package for Analyzing Plasma-Synthesized Nanoparticle Size Distribution**
 
-NanoPSD is a production-ready Python package designed to extract **particle size distributions (PSD)** of **Nanoparticles (NPs)** from **SEM/TEM images**.  
-It supports both **single-image** and **batch image** analysis, providing a modular and object-oriented pipeline for nanoparticle research and metrology.  
+NanoPSD is a production-ready Python package designed to extract **particle size distributions (PSD)** of **Nanoparticles (NPs)** from **SEM/TEM images**.
+It supports both **single-image** and **batch image** analysis, providing a modular and object-oriented pipeline for nanoparticle research and metrology.
 
 ---
 
 ## Features
-- Automated **scale bar & text exclusion** from analysis  
-- **Particle segmentation** using classical methods (Otsu thresholding, preprocessing filters)  
-- **Size extraction & visualization** (histograms, plots, CSV export)  
-- Works with both **single images** and **batch folders**  
-- Modular, **object-oriented codebase** for easy extension  
+- Automated **scale bar & text exclusion** from analysis
+- **Particle segmentation** using classical methods (Otsu thresholding, preprocessing filters)
+- **Size extraction & visualization** (histograms, plots, CSV export)
+- Works with both **single images** and **batch folders**
+- Modular, **object-oriented codebase** for easy extension
 - Ready for future **AI/ML-based segmentation integration**
 
 ---
@@ -19,26 +19,26 @@ It supports both **single-image** and **batch image** analysis, providing a modu
 ## NanoPSD Pipeline
 The processing workflow follows these main steps:
 
-1. **Input Acquisition** – SEM/TEM image(s) provided as single or batch mode.  
-2. **Preprocessing** – Contrast enhancement (CLAHE, filters) to improve particle visibility.  
-3. **Segmentation** – Classical thresholding (Otsu) to identify particle regions.  
-4. **Scale Bar & Text Exclusion** – Automatic masking of scale bar and annotation text.  
-5. **Particle Measurement** – Extract particle sizes and compute statistics.  
-6. **Visualization & Export** – Histograms, CSV tables, and segmented overlay images.  
+1. **Input Acquisition** – SEM/TEM image(s) provided as single or batch mode.
+2. **Preprocessing** – Contrast enhancement (CLAHE, filters) to improve particle visibility.
+3. **Segmentation** – Classical thresholding (Otsu) to identify particle regions.
+4. **Scale Bar & Text Exclusion** – Automatic masking of scale bar and annotation text.
+5. **Particle Measurement** – Extract particle sizes and compute statistics.
+6. **Visualization & Export** – Histograms, CSV tables, and segmented overlay images.
 
 ---
 
 ## Dependencies
-NanoPSD requires the following Python libraries:  
-- `opencv-python`  
-- `numpy`  
-- `matplotlib`  
-- `scikit-image`  
-- `scipy`  
-- `pandas`  
-- `Pillow`  
+NanoPSD requires the following Python libraries:
+- `opencv-python`
+- `numpy`
+- `matplotlib`
+- `scikit-image`
+- `scipy`
+- `pandas`
+- `Pillow`
 
-You can install them either via **requirements.txt** or using Conda (see Setup).  
+You can install them either via **requirements.txt** or using Conda (see Setup).
 
 ---
 
@@ -91,15 +91,19 @@ conda activate imglab
 ## Usage
 
 ### Single Image Analysis
-1. Place your SEM/TEM image in the project folder (or provide a path).  
-2. Run:  
+1. Place your SEM/TEM image in the project folder (or provide a path).
+2. Run the following command if you provide the Scale bar reading (say 200 nm):
 ```bash
-python3 main.py --mode single --input ./single_image.png --scale 200
+python main.py --mode single --input sample_image_1.png --algo classical --min-size 3 --scale 200
+```
+3. Run the following command if you do not provide the Scale bar reading:
+```bash
+python main.py --mode single --input sample_image_1.png --algo classical --min-size 3 --scale -1
 ```
 
 ### Batch Image Analysis
-1. Place multiple SEM/TEM images in a folder (e.g., `batch_images/`).  
-2. Run:  
+1. Place multiple SEM/TEM images in a folder (e.g., `batch_images/`).
+2. Run:
 ```bash
 python3 main.py --mode batch --input ./batch_images --scale 200
 ```
@@ -107,9 +111,9 @@ python3 main.py --mode batch --input ./batch_images --scale 200
 ---
 
 ## Outputs
-- **Particle size histogram** (`histogram.png`)  
-- **Tabulated results** (`results.csv` with particle diameters/statistics)  
-- **Visualization plots** (segmented overlays)  
+- **Particle size histogram** (`histogram.png`)
+- **Tabulated results** (`results.csv` with particle diameters/statistics)
+- **Visualization plots** (segmented overlays)
 
 Example CSV output:
 ```csv
@@ -123,47 +127,47 @@ Particle_ID, Diameter_nm
 ---
 
 ## Example Results
-*(Insert sample figures here in your repo for best presentation)*  
+*(Insert sample figures here in your repo for best presentation)*
 
-- **Raw SEM Image**  
-  ![SEM Raw](SEM_Sample_Image.png)  
+- **Raw SEM Image**
+  ![SEM Raw](SEM_Sample_Image.png)
 
-- **Segmented Overlay**  
-  *(example segmented image output)*  
+- **Segmented Overlay**
+  *(example segmented image output)*
 
-- **Particle Size Histogram**  
-  *(example histogram plot)*  
+- **Particle Size Histogram**
+  *(example histogram plot)*
 
 ---
 
 ## Roadmap
-- [ ] Integrate **AI-assisted segmentation**  
-- [ ] Extend support for **TEM images with diffraction patterns**  
-- [ ] Advanced morphology analysis (aspect ratio, circularity, shape factor)  
-- [ ] Jupyter Notebook integration for reproducible workflows  
+- [ ] Integrate **AI-assisted segmentation**
+- [ ] Extend support for **TEM images with diffraction patterns**
+- [ ] Advanced morphology analysis (aspect ratio, circularity, shape factor)
+- [ ] Jupyter Notebook integration for reproducible workflows
 
 ---
 
 ## Contributing
-Contributions are welcome! Please fork the repo and submit a pull request.  
+Contributions are welcome! Please fork the repo and submit a pull request.
 
-Guidelines:  
-- Document new features clearly.  
-- Provide test images/examples.  
-- Ensure PEP8 compliance.  
+Guidelines:
+- Document new features clearly.
+- Provide test images/examples.
+- Ensure PEP8 compliance.
 
 ---
 
 ## License
-This project is licensed under the **MIT License** – see the [LICENSE](LICENSE) file for details.  
+This project is licensed under the **MIT License** – see the [LICENSE](LICENSE) file for details.
 - I will update the License after talking with Prof. Davide
 
 ---
 
 ## Citation
-If you use NanoPSD in academic work, please cite:  
+If you use NanoPSD in academic work, please cite:
 
-*Huq, MF. (2025). NanoPSD: Automated Nanoparticle Size Distribution Analysis from Electron Microscopy Images.*  
+*Huq, MF. (2025). NanoPSD: Automated Nanoparticle Size Distribution Analysis from Electron Microscopy Images.*
 
 ---
 
@@ -171,4 +175,4 @@ If you use NanoPSD in academic work, please cite:
 
 
 
- 
+

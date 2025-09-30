@@ -78,6 +78,7 @@ class NanoparticleAnalyzer:
         extensions: Tuple[str, ...] = (".png", ".tif", ".tiff", ".jpg", ".jpeg"),
         min_size_px: int = 3,
         mode: str = "classical",
+        ocr: str = "auto",
     ) -> None:
         self.image_path = image_path
         self.scale_bar_nm = float(scale_bar_nm)
@@ -85,6 +86,7 @@ class NanoparticleAnalyzer:
         self.extensions = tuple(extensions)
         self.min_size_px = int(min_size_px)
         self.mode = mode  # Mode of analysis: 'classical', 'ai', 'both', 'compare'
+        self.ocr = ocr  # OCR backend preference: 'auto', 'easyocr', 'tesseract'
 
         # Guard: only classical is implemented right now
         if self.mode != "classical":
@@ -125,6 +127,10 @@ class NanoparticleAnalyzer:
         try:
             base = os.path.basename(img_path)
             logging.info(f"Processing: {base}")
+
+            # --- NEW: set OCR backend preference from CLI flag ---
+            if getattr(self, "ocr", None):
+                os.environ["NANOPSD_OCR"] = str(self.ocr).lower()
 
             # --- Step 1: Detect scale bar (px) + bbox/mask; OCR label if scale not provided ---
             scale_bar_px, bar_bbox, bar_mask, _ = detect_scale_bar(

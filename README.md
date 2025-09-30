@@ -94,11 +94,11 @@ conda activate imglab
 1. Place your SEM/TEM image in the project folder (or provide a path).
 2. Run the following command if you provide the Scale bar reading (say 200 nm):
 ```bash
-python main.py --mode single --input sample_image_1.png --algo classical --min-size 3 --scale 200
+python main.py --mode single --input sample_image_1.png --algo classical --min-size 3 --scale 200 --ocr auto/easyocr/tesseract
 ```
 3. Run the following command if you do not provide the Scale bar reading:
 ```bash
-python main.py --mode single --input sample_image_1.png --algo classical --min-size 3 --scale -1
+python main.py --mode single --input sample_image_1.png --algo classical --min-size 3 --scale -1 --ocr auto/easyocr/tesseract
 ```
 
 ### Batch Image Analysis
@@ -107,6 +107,11 @@ python main.py --mode single --input sample_image_1.png --algo classical --min-s
 ```bash
 python3 main.py --mode batch --input ./batch_images --scale 200
 ```
+
+### Auto/CPU/GPU Processing of OCR
+1. auto - will automatically select CPU or GPU based on availability
+2. easyocr - will use GPU
+3. tesseract - will use CPU
 
 ---
 

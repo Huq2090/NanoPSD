@@ -9,23 +9,45 @@ Design goals:
 * Normalize µm/um to nm so downstream logic only deals with nanometers.
 """
 
+import os
 import re
 from typing import Optional, Tuple
 
-# Keep a small registry of available OCR backends
-_BACKENDS = []
-
+# Detect available backends
+_has_tesseract = False
+_has_easyocr = False
 try:
     import pytesseract  # type: ignore
-    _BACKENDS.append("tesseract")
+
+    _has_tesseract = True
+except Exception:
+    pass
+try:
+    import easyocr  # type: ignore
+
+    _has_easyocr = True
 except Exception:
     pass
 
-try:
-    import easyocr  # type: ignore
-    _BACKENDS.append("easyocr")
-except Exception:
-    pass
+# Read preference from environment (set by CLI flag in analyzer)
+# Values: "auto" (default), "easyocr", "tesseract"
+_PREFERRED = os.getenv("NANOPSD_OCR", "auto").lower()
+
+
+def _backend_order():
+    """Return backends in the order we should try based on preference + availability."""
+    if _PREFERRED == "easyocr" and _has_easyocr:
+        return ["easyocr"] + (["tesseract"] if _has_tesseract else [])
+    if _PREFERRED == "tesseract" and _has_tesseract:
+        return ["tesseract"] + (["easyocr"] if _has_easyocr else [])
+    # auto: prefer EasyOCR (GPU-capable), then Tesseract
+    if _has_easyocr and _has_tesseract:
+        return ["easyocr", "tesseract"]
+    if _has_easyocr:
+        return ["easyocr"]
+    if _has_tesseract:
+        return ["tesseract"]
+    return []  # none available
 
 
 def parse_scale_text(text: str) -> Optional[Tuple[float, str]]:
@@ -45,25 +67,16 @@ def parse_scale_text(text: str) -> Optional[Tuple[float, str]]:
         return None
 
     # Normalize common variants that OCR might produce:
-    t = text.strip()
-    t = t.replace("μ", "µ")   # greek mu → micro sign
-    t = t.replace("u", "µ")   # plain 'u' often appears instead of 'µ'
-    t = t.replace(",", ".")   # support comma decimal separators
-
-    # Capture a number (int or float) followed by nm / µm / um (case-insensitive)
+    t = text.strip().replace("μ", "µ").replace("u", "µ").replace(",", ".")
     m = re.search(r"(\d+(?:\.\d+)?)\s*(nm|µm|um)\b", t, flags=re.IGNORECASE)
     if not m:
         return None
-
     val = float(m.group(1))
     unit = m.group(2).lower()
-
-    # Normalize to nm so the pipeline uses a single unit
     if unit == "nm":
         return (val, "nm")
     if unit in ("µm", "um"):
         return (val * 1000.0, "nm")
-
     return None
 
 
@@ -83,11 +96,11 @@ def ocr_read_number(image, lang_hint: str = "eng") -> Optional[str]:
     text : str or None
         The raw OCR string, or None if no backend is available or nothing is read.
     """
-    for backend in _BACKENDS:
+    for backend in _backend_order():
         try:
             if backend == "tesseract":
                 from pytesseract import image_to_string  # type: ignore
-                # Whitelist numerals + nm/µm letters to bias OCR towards scale strings
+
                 custom = r"--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789nmµuUM."
                 txt = image_to_string(image, config=custom, lang=lang_hint)
                 if txt and txt.strip():
@@ -95,13 +108,20 @@ def ocr_read_number(image, lang_hint: str = "eng") -> Optional[str]:
 
             elif backend == "easyocr":
                 import easyocr  # type: ignore
-                reader = easyocr.Reader([lang_hint], gpu=False)
+
+                try:
+                    import torch
+
+                    use_gpu = bool(torch.cuda.is_available())
+                except Exception:
+                    use_gpu = False
+                reader = easyocr.Reader([lang_hint], gpu=use_gpu)
                 res = reader.readtext(image)
                 if res:
-                    # Concatenate recognized chunks into one string
-                    return " ".join(r[1] for r in res if r and len(r) >= 2)
+                    txt = " ".join(r[1] for r in res if r and len(r) >= 2)
+                    if txt and txt.strip():
+                        return txt
         except Exception:
-            # If a backend errors (e.g., missing binaries), silently try the next one.
+            # Try the next backend on any error
             continue
-
     return None

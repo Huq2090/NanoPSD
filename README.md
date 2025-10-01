@@ -58,6 +58,59 @@ NanoPSD/
 ├── .gitignore
 └── README.md
 ```
+```bash
+NanoPSD/
+├── README.md                  # Project overview & usage
+├── requirements.txt           # Python dependencies
+├── imglab_environment.yml     # Conda environment
+├── main.py                    # Entry point (calls CLI & pipeline)
+├── sample_image_1.png
+├── sample_image_2.png
+├── sample_image_3.png
+├── sample_image_4.tif
+│
+├── pipeline/                  # Orchestrates the full workflow
+│   ├── __init__.py
+│   └── analyzer.py            # NanoparticleAnalyzer class
+│
+├── scripts/                   # Modular processing steps
+│   ├── __init__.py
+│   ├── cli.py                 # Command-line argument parser
+│   │
+│   ├── preprocessing/
+│   │   ├── __init__.py
+│   │   └── clahe_filter.py    # Contrast enhancement (CLAHE)
+│   │
+│   ├── segmentation/
+│   │   ├── __init__.py
+│   │   ├── base.py            # Segmentation base interface
+│   │   ├── otsu_impl.py       # Otsu thresholding implementation
+│   │   └── otsu_segment.py    # Segmentation workflow
+│   │
+│   ├── analysis/
+│   │   └── size_measurement.py # Particle measurement & LaTeX export
+│   │
+│   └── visualization/
+│       └── plotting.py        # Histogram and plot outputs
+│
+├── utils/                     # Helper utilities
+│   ├── __init__.py
+│   ├── ocr.py                 # OCR for scale bar text (EasyOCR/Tesseract)
+│   ├── scale_bar.py           # Scale bar detection (hybrid)
+│   └── scale_barrr.py         # (Alt/experimental scale bar code)
+│
+├── notebooks/
+│   └── PSD_Interactive_Analysis.ipynb # Jupyter notebook demo
+│
+└── outputs/                   # Generated results & reports
+    ├── debug/                 # Debug intermediate images
+    ├── figures/               # Plots, overlays
+    ├── preprocessed/          # Preprocessed images
+    ├── results/               # .tex & CSV summaries
+    │   ├── nanoparticle_data.csv
+    │   └── sample_image_*_summary.tex
+    └── report.tex             # Example LaTeX report
+```
 
 ---
 

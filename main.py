@@ -52,26 +52,26 @@ from pipeline.analyzer import NanoparticleAnalyzer
 def main() -> None:
     """
     Main execution function for the NanoPSD pipeline.
-    
+
     This function coordinates the entire analysis workflow:
     1. Parse CLI arguments
     2. Validate inputs (done by argparse)
     3. Setup output directories
     4. Create analyzer instance with user parameters
     5. Execute the analysis pipeline
-    
+
     Returns
     -------
     None
         Results are written to files in outputs/ directory
-    
+
     Raises
     ------
     SystemExit
         If invalid arguments provided (handled by argparse)
     Exception
         Any errors during analysis are caught and logged by the analyzer
-    
+
     Output Structure:
     -----------------
     outputs/
@@ -87,14 +87,14 @@ def main() -> None:
         ├── scale_bar_final.png              # Debug: detected scale bar
         └── scale_candidates.png             # Debug: scale bar ROI
     """
-    
+
     # -------------------------------------------------------------------------
     # Step 1: Parse command-line arguments
     # -------------------------------------------------------------------------
     # This delegates to scripts/cli.py which defines all CLI options
     # If arguments are invalid, argparse will print help and exit automatically
     args = parse_args()
-    
+
     # -------------------------------------------------------------------------
     # Step 2: Setup output directory structure
     # -------------------------------------------------------------------------
@@ -102,7 +102,7 @@ def main() -> None:
     # exist_ok=True: don't raise error if directory already exists
     os.makedirs("outputs/results", exist_ok=True)  # For CSV and LaTeX files
     os.makedirs("outputs/figures", exist_ok=True)  # For plots and visualizations
-    
+
     # -------------------------------------------------------------------------
     # Step 3: Instantiate the analyzer with user parameters
     # -------------------------------------------------------------------------
@@ -112,23 +112,21 @@ def main() -> None:
     # - Segments particles (currently Otsu, AI planned)
     # - Measures particle sizes (equivalent diameter)
     # - Generates plots and exports results
-    
+
     analyzer = NanoparticleAnalyzer(
         # Input configuration
-        image_path=args.input,          # File path or folder path
-        batch=(args.mode == "batch"),   # Single vs batch mode
-        
+        image_path=args.input,  # File path or folder path
+        batch=(args.mode == "batch"),  # Single vs batch mode
         # Scale calibration
-        scale_bar_nm=args.scale,        # Physical scale in nm (-1 = use OCR)
-        
+        scale_bar_nm=args.scale_bar_nm,  # Physical scale in nm (-1 = use OCR)
         # Segmentation parameters
-        mode=args.algo,                 # "classical" (only one implemented now)
-        min_size_px=args.min_size,      # Minimum particle size filter (pixels)
-        
+        mode=args.algo,  # "classical" (only one implemented now)
+        min_size_px=args.min_size,  # Minimum particle size filter (pixels)
         # OCR configuration
-        ocr_backend=args.ocr_backend,   # "auto", "easyocr", or "tesseract"
+        ocr_backend=args.ocr_backend,  # "auto", "easyocr", or "tesseract"
+        verify_scale_bar=args.verify_scale_bar,  # Enable manual verification of scale detection
     )
-    
+
     # -------------------------------------------------------------------------
     # Step 4: Run the analysis pipeline
     # -------------------------------------------------------------------------
@@ -139,7 +137,7 @@ def main() -> None:
     # All errors are caught and logged by the analyzer, so the program
     # won't crash on a single bad image in batch mode
     analyzer.run()
-    
+
     # -------------------------------------------------------------------------
     # Step 5: Done!
     # -------------------------------------------------------------------------
@@ -150,7 +148,7 @@ def main() -> None:
 if __name__ == "__main__":
     """
     Standard Python idiom: only run main() if this file is executed directly.
-    
+
     This allows the module to be imported for testing without running main().
     Example:
         python3 main.py            # Runs main()

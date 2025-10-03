@@ -1,9 +1,37 @@
-opencv-python
-numpy
-matplotlib
-scikit-image
-scipy
-pandas
-# OCR (optional)
-pytesseract
-easyocr
+# ============================================
+# Core Dependencies (Required)
+# ============================================
+opencv-python>=4.5.0
+numpy>=1.21.0
+matplotlib>=3.4.0
+scikit-image>=0.18.0
+scipy>=1.7.0
+pandas>=1.3.0
+Pillow>=8.3.0
+
+# ============================================
+# OCR Dependencies (Optional)
+# Only needed for automatic scale detection
+# ============================================
+
+# --- Tesseract (Recommended for CPU) ---
+# System installation required first:
+#   Ubuntu/Debian: sudo apt-get install tesseract-ocr
+#   macOS: brew install tesseract
+#   Windows: https://github.com/UB-Mannheim/tesseract/wiki
+pytesseract>=0.3.8
+
+# --- EasyOCR (GPU Recommended) ---
+# WARNING: Very slow on CPU (hours vs seconds)
+# Only uncomment if you have CUDA GPU
+# easyocr>=1.6.0
+# torch>=1.9.0
+# torchvision>=0.10.0
+
+# ============================================
+# Notes
+# ============================================
+# - For CPU-only systems: Use Tesseract (pytesseract)
+# - For GPU systems: Uncomment easyocr and torch
+# - To skip OCR entirely: Calculate scale manually
+#   and use --scale parameter (fastest option)

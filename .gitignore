@@ -63,9 +63,19 @@ data/
 *.npz
 *.npy
 *.mat
+
+# ----------------------------
+# Image files (but keep samples)
+# ----------------------------
 *.tiff
 *.tif
 *.png
+*.jpg
+*.jpeg
+# EXCEPTION: Keep sample images for documentation
+!sample_image_*.png
+!sample_image_*.tif
+!sample_image_*.jpg
 
 # ----------------------------
 # Temporary / Misc
@@ -75,3 +85,14 @@ Thumbs.db
 *.bak
 *.swp
 *.tmp
+
+# ----------------------------
+# LaTeX outputs
+# ----------------------------
+*.aux
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+*.pdf
+# Keep sample reports
+!example_report.pdf

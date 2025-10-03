@@ -35,16 +35,16 @@ def build_parser() -> argparse.ArgumentParser:
     Usage Examples
     --------------
     # Single image with known scale (manual)
-    python3 main.py --mode single --input image.tif --scale 200 --algo classical --min-size 3
+    python3 main.py --mode single --input image.tif --scale-bar-nm 200 --algo classical --min-size 3
 
     # Single image with OCR auto-detection
-    python3 main.py --mode single --input image.tif --scale -1 --algo classical --min-size 3
+    python3 main.py --mode single --input image.tif --scale-bar-nm -1 --algo classical --min-size 3
 
     # Single image with EasyOCR specifically
-    python3 main.py --mode single --input image.tif --scale -1 --algo classical --min-size 3 --ocr-backend easyocr
+    python3 main.py --mode single --input image.tif --scale-bar-nm -1 --algo classical --min-size 3 --ocr-backend easyocr
 
     # Batch processing with OCR
-    python3 main.py --mode batch --input ./images/ --scale -1 --algo classical --min-size 5 --ocr-backend auto
+    python3 main.py --mode batch --input ./images/ --scale-bar-nm -1 --algo classical --min-size 5 --ocr-backend auto
     """
 
     # Create parser with program description
@@ -58,9 +58,9 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Examples:\n"
-            "  Single image (manual scale):     python3 main.py --mode single --input image.tif --scale 200\n"
-            "  Single image (OCR auto-detect):  python3 main.py --mode single --input image.tif --scale -1\n"
-            "  Batch processing:                python3 main.py --mode batch --input ./folder/ --scale -1\n"
+            "  Single image (manual scale):     python3 main.py --mode single --input image.tif --scale-bar-nm 200\n"
+            "  Single image (OCR auto-detect):  python3 main.py --mode single --input image.tif --scale-bar-nm -1\n"
+            "  Batch processing:                python3 main.py --mode batch --input ./folder/ --scale-bar-nm -1\n"
             "\n"
             "For more information, visit: https://github.com/Huq2090/NanoPSD"
         ),
@@ -90,7 +90,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     p.add_argument(
-        "--scale",
+        "--scale-bar-nm",
         type=float,
         required=True,
         metavar="VALUE",
@@ -100,9 +100,9 @@ def build_parser() -> argparse.ArgumentParser:
             "  -1: Attempt automatic OCR detection of scale bar text\n"
             "\n"
             "Examples:\n"
-            "  --scale 200    # Scale bar is 200 nm\n"
-            "  --scale 0.5    # Scale bar is 0.5 nm (rare, but supported)\n"
-            "  --scale -1     # Auto-detect using OCR"
+            "  --scale-bar-nm 200    # Scale bar is 200 nm\n"
+            "  --scale-bar-nm 0.5    # Scale bar is 0.5 nm (rare, but supported)\n"
+            "  --scale-bar-nm -1     # Auto-detect using OCR"
         ),
     )
 
@@ -168,11 +168,16 @@ def build_parser() -> argparse.ArgumentParser:
             "               - Requires: apt-get install tesseract-ocr\n"
             "                          pip install pytesseract\n"
             "\n"
-            "Note: This flag only matters when --scale -1 (OCR mode).\n"
-            "      When providing manual scale (e.g., --scale 200), OCR is not used."
+            "Note: This flag only matters when --scale-bar-nm -1 (OCR mode).\n"
+            "      When providing manual scale (e.g., --scale-bar-nm 200), OCR is not used."
         ),
     )
 
+    p.add_argument(
+        "--verify-scale-bar",
+        action="store_true",
+        help="Show detected scale bar and wait for user confirmation (Y/N) before processing",
+    )
     return p
 
 

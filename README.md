@@ -291,6 +291,44 @@ Particle_ID, Diameter_nm
 
 ---
 
+## Morphology Classification
+
+NanoPSD automatically classifies particles into three morphological categories based on shape analysis.
+
+### Classification Categories
+
+| Type | Description | Criteria |
+|------|-------------|----------|
+| **Spherical** | Round, compact particles | Aspect ratio < 1.5, Circularity > 0.75, Solidity > 0.90 |
+| **Rod-like** | Elongated particles | Aspect ratio ≥ 2.0, Smooth boundaries (Solidity > 0.85) |
+| **Aggregate** | Clustered or irregular particles | Low solidity < 0.85 or irregular boundaries (Circularity < 0.60) |
+
+### Shape Metrics
+
+The classification uses four geometric measurements:
+
+- **Aspect Ratio**: Major axis / Minor axis (elongation measure)
+- **Circularity**: 4π × Area / Perimeter² (1.0 = perfect circle)
+- **Solidity**: Area / Convex Hull Area (1.0 = smooth outline)
+- **Extent**: Area / Bounding Box Area (space filling)
+
+### Visualization
+
+Particles are color-coded in the morphology overlay:
+- **Green**: Spherical particles
+- **Blue**: Rod-like particles
+- **Red**: Aggregate particles
+
+### Output Files
+
+Morphology analysis generates additional outputs:
+1. `{image}_morphology_overlay.png` - Color-coded particle contours
+2. `{image}_morphology_histograms.png` - 4-panel size distributions by type
+3. `{image}_morphology_pie.png` - Pie chart showing type distribution
+4. `nanoparticle_data.csv` - Includes morphology classification and shape metrics
+
+### Example Console Output
+
 ## Troubleshooting
 
 ### Problem: Scale bar detection failed or incorrect scale detected

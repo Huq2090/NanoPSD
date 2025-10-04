@@ -20,6 +20,7 @@ def measure_particles(
 ):
     """
     Measures the diameters of segmented nanoparticles and overlays contours on the original image.
+    Also classify particle morphology into three types: spherical, road-like, and aggregate.
 
     Parameters:
     -----------
@@ -109,10 +110,52 @@ def measure_particles(
                     )
                     cv2.ellipse(combined_img, ellipse, (255, 0, 255), CONTOUR_THICKNESS)
 
+            # Morphology Classification
+            # Calculate shape metrics
+            perimeter = region.perimeter
+            if len(region.coords) >= 5:
+                # Get perimeter (already calculated earlier but need it here too)
+                perimeter = region.perimeter
+
+                major_axis = region.major_axis_length
+                minor_axis = region.minor_axis_length
+                aspect_ratio = major_axis / max(minor_axis, 1e-6)
+
+                circularity = (4 * np.pi * region.area) / max(perimeter**2, 1e-6)
+                solidity = region.solidity
+                extent = region.extent
+
+                # Classification logic (priority: aggregate > spherical > rod-like)
+                if solidity < 0.85 or circularity < 0.60:
+                    morphology = "aggregate"
+                elif aspect_ratio < 1.5 and circularity > 0.75 and solidity > 0.90:
+                    morphology = "spherical"
+                elif aspect_ratio >= 1.8 and solidity > 0.80:
+                    morphology = "rod-like"
+                else:
+                    morphology = "aggregate"
+            else:
+                aspect_ratio = 1.0
+                circularity = 1.0
+                solidity = 1.0
+                extent = 1.0
+                morphology = "aggregate"
+
             # Add the diameter to the result list
+            # Store all measurements in lists
             diameters_pixels.append(d_px)
             diameters_nm.append(d_nm)
-            centroids.append(region.centroid)
+            centroids.append(
+                {
+                    "y": region.centroid[0],
+                    "x": region.centroid[1],
+                    "aspect_ratio": aspect_ratio,
+                    "circularity": circularity,
+                    "solidity": solidity,
+                    "extent": extent,
+                    "morphology": morphology,
+                }
+            )
 
     # Save images using original filename + suffix, preserving original extension
     os.makedirs("outputs/figures", exist_ok=True)
@@ -135,12 +178,104 @@ def measure_particles(
     print(" -", ell_path)
     print(" -", all_path)
 
-    # Convert the results to a DataFrame and save as CSV
-    df = pd.DataFrame({"Diameter (nm)": diameters_nm})
+    # Morphology overlay
+    morphology_overlay = cv2.cvtColor(original_image, cv2.COLOR_GRAY2BGR)
+
+    color_map = {
+        "spherical": (0, 255, 0),  # Green
+        "rod-like": (255, 0, 0),  # Blue (BGR)
+        "aggregate": (0, 0, 255),  # Red
+    }
+
+    # Debug counts
+    morph_types = [c["morphology"] for c in centroids]
+    from collections import Counter
+
+    counts = Counter(morph_types)
+    print(f"Morphology distribution: {dict(counts)}")
+
+    region_idx = 0
+    for region in regions:
+        if max_area_px >= region.area >= min_area_px:
+            if region_idx >= len(centroids):
+                break
+
+            morph = centroids[region_idx]["morphology"]
+            color = color_map.get(morph, (255, 255, 255))
+
+            region_mask = (labeled_image == region.label).astype(np.uint8)
+            contours, _ = cv2.findContours(
+                region_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+            )
+            cv2.drawContours(morphology_overlay, contours, -1, color, CONTOUR_THICKNESS)
+
+            cy, cx = region.centroid
+            label = morph[0].upper()
+            cv2.putText(
+                morphology_overlay,
+                label,
+                (int(cx) - 5, int(cy) + 5),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                color,
+                1,
+            )
+
+            region_idx += 1
+
+    # Add legend
+    legend_y = 30
+    cv2.putText(
+        morphology_overlay,
+        "Green = Spherical",
+        (10, legend_y),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.7,
+        (0, 255, 0),
+        2,
+    )
+    cv2.putText(
+        morphology_overlay,
+        "Blue = Rod-like",
+        (10, legend_y + 30),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.7,
+        (255, 0, 0),
+        2,
+    )
+    cv2.putText(
+        morphology_overlay,
+        "Red = Aggregate",
+        (10, legend_y + 60),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.7,
+        (0, 0, 255),
+        2,
+    )
+
+    # Save morphology overlay
+    morph_path = f"outputs/figures/{stem}_morphology_overlay{ext}"
+    cv2.imwrite(morph_path, morphology_overlay)
+    print(" -", morph_path)
+
+    # Convert to DataFrame with ALL metrics
+    df = pd.DataFrame(
+        {
+            "Diameter (nm)": diameters_nm,
+            "Diameter (pixels)": diameters_pixels,
+            "Centroid_X": [c["x"] for c in centroids],
+            "Centroid_Y": [c["y"] for c in centroids],
+            "Aspect_Ratio": [c["aspect_ratio"] for c in centroids],
+            "Circularity": [c["circularity"] for c in centroids],
+            "Solidity": [c["solidity"] for c in centroids],
+            "Extent": [c["extent"] for c in centroids],
+            "Morphology": [c["morphology"] for c in centroids],
+        }
+    )
     df.to_csv("outputs/results/nanoparticle_data.csv", index=False)
 
     # Return the list of diameters
-    return diameters_nm, diameters_pixels, centroids
+    return diameters_nm, combined_img, df
 
 
 def export_to_latex(diameters, img_path, out_path="outputs/report.tex"):

@@ -481,11 +481,31 @@ class NanoparticleAnalyzer:
             # -----------------------------------------------------------------
             # Step 8: Visualize and export results
             # -----------------------------------------------------------------
-            # plot_results: generates histogram PNG
-            plot_results(diameters_nm, img_path)
+            # plot_results: generates histograms (overall + morphology)
+            plot_results(diameters_nm, img_path, df=df)
 
             # export_to_latex: generates statistical summary table
             export_to_latex(diameters_nm, img_path)
+
+            # === NEW: Print morphology summary ===
+            if len(df) > 0 and "Morphology" in df.columns:
+                print("\n" + "=" * 60)
+                print("MORPHOLOGY SUMMARY")
+                print("=" * 60)
+                morphology_counts = df["Morphology"].value_counts()
+                for morph in ["spherical", "rod-like", "aggregate"]:
+                    count = morphology_counts.get(morph, 0)
+                    percentage = (count / len(df)) * 100
+                    avg_diam = (
+                        df[df["Morphology"] == morph]["Diameter (nm)"].mean()
+                        if count > 0
+                        else 0
+                    )
+                    print(
+                        f"{morph.capitalize():12s}: {count:4d} ({percentage:5.1f}%)  "
+                        f"Avg: {avg_diam:6.2f} nm"
+                    )
+                print("=" * 60)
 
             logging.info(f"Completed: {base} | Count={len(diameters_nm)}")
 

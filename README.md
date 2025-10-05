@@ -1,15 +1,16 @@
 # NanoPSD
-**Software Package for Analyzing Plasma-Synthesized Nanoparticle Size Distribution**
+**Software Package for Analyzing Plasma-Synthesized Nanoparticle Size and Morphology Distribution**
 
-NanoPSD is a production-ready Python package designed to extract **particle size distributions (PSD)** of **Nanoparticles (NPs)** from **SEM/TEM images**.
+NanoPSD is a production-ready Python package designed to extract **particle size and morphology distributions (PSD)** of **Nanoparticles (NPs)** from **SEM/TEM images**.
 It supports both **single-image** and **batch image** analysis, providing a modular and object-oriented pipeline for nanoparticle research and metrology.
 
 ---
 
 ## Features
-- Automated **scale bar & text exclusion** from analysis
+- Automated **scale bar & text exclusion** from images
 - **Particle segmentation** using classical methods (Otsu thresholding, preprocessing filters)
 - **Size extraction & visualization** (histograms, plots, CSV export)
+- **Classification of nanoparticles** based on **morphology**
 - Works with both **single images** and **batch folders**
 - Modular, **object-oriented codebase** for easy extension
 - Ready for future **AI/ML-based segmentation integration**
@@ -23,8 +24,9 @@ The processing workflow follows these main steps:
 2. **Preprocessing** – Contrast enhancement (CLAHE, filters) to improve particle visibility.
 3. **Segmentation** – Classical thresholding (Otsu) to identify particle regions.
 4. **Scale Bar & Text Exclusion** – Automatic masking of scale bar and annotation text.
-5. **Particle Measurement** – Extract particle sizes and compute statistics.
-6. **Visualization & Export** – Histograms, CSV tables, and segmented overlay images.
+5. **Particle Size Measurement** – Extract particle sizes and compute statistics.
+6. **Morphology Classification** - Classify particles based on their morphology and report morphology statistics.
+7. **Visualization & Export** – Histograms, CSV tables, and segmented overlay images.
 
 ---
 
@@ -59,7 +61,7 @@ pip install easyocr torch torchvision
 ```
 
 **Option 3: Skip OCR entirely (Recommended)**
-Calculate scale manually and use `--scale-bar-nm` parameter. This is the fastest and most reliable method.
+Provide `--scale-bar-nm` parameter to the CLI manually. This is the fastest and most reliable method.
 
 ---
 
@@ -70,7 +72,7 @@ NanoPSD/
 ├── requirements.txt           # Python dependencies
 ├── imglab_environment.yml     # Conda environment
 ├── main.py                    # Entry point (calls CLI & pipeline)
-├── sample images for single image processing
+├── sample images              # Sample images for single image processing
 │   ├── sample_image_1.tif
 │   └── sample_image_2.png
 ├── batch_images/              # Sample folder for batch mode testing
@@ -179,9 +181,9 @@ pip install easyocr torch torchvision
 
 **The scale bar size parameter is written on the image**
 
-#### Method 1: Manual Reading (✅ Recommended - Fastest & Most Reliable)
+#### Method 1: Manual Reading (Recommended - Fastest & Most Reliable)
 
-1. Open your image in ImageJ, Fiji, or any image viewer with measurement tools
+1. Open your image in ImageJ, Fiji, or any image viewer
 2. Read the scale bar annotation (e.g., "200 nm")
 4. Use this value with `--scale-bar-nm` parameter
 
@@ -258,38 +260,39 @@ batch_images/
     batch_sample_1.tif
     batch_sample_2.tif
     batch_sample_3.tif
+```
 
 ### OCR Backend Options
 
-| Backend | Hardware | Speed | Accuracy | Recommended For |
-|---------|----------|-------|----------|-----------------|
-| `tesseract` | CPU only | Fast | Good | **CPU systems (default)** |
-| `easyocr` | GPU preferred | Very fast (GPU) / Very slow (CPU) | Excellent | CUDA GPU systems only |
-| `auto` | Automatic | Varies | Varies | Tries easyocr, falls back to tesseract |
+| Backend     | Hardware      | Speed                            | Accuracy  | Recommended For                       |
+|-------------|---------------|----------------------------------|-----------|---------------------------------------|
+| `tesseract` | CPU only      | Fast                             | Good      | **CPU systems (default)**             |
+| `easyocr`   | GPU preferred | Very fast (GPU) / Very slow (CPU)| Excellent | CUDA GPU systems only                 |
+| `auto`      | Automatic     | Varies                           | Varies    | Tries easyocr, falls back to tesseract|
 
 **Performance Example:**
 - Tesseract: ~2-5 seconds per image
 - EasyOCR (GPU): ~3-8 seconds per image
-- EasyOCR (CPU): ~300-600 seconds per image ⚠️
+- EasyOCR (CPU): ~300-600 seconds per image
 
 **Recommendations:**
-- 🎯 **Best practice**: Input scale bar size manually, skip OCR entirely
-- 💻 **CPU-only systems**: Use `--ocr-backend tesseract`
-- 🚀 **GPU systems (CUDA)**: Use `--ocr-backend easyocr`
+- **Best practice**: Input scale bar size manually, skip OCR entirely
+- **CPU-only systems**: Use `--ocr-backend tesseract`
+- **GPU systems (CUDA)**: Use `--ocr-backend easyocr`
 
 ---
 
 ## Command-Line Parameters
 
-| Parameter | Description | Example |
-|-----------|-------------|---------|
-| `--mode` | Processing mode: `single` or `batch` | `--mode single` |
-| `--input` | Input image path or folder | `--input image.png` |
-| `--algo` | Segmentation algorithm: `classical` | `--algo classical` |
-| `--min-size` | Minimum particle size (nm) | `--min-size 3` |
-| `--scale-bar-nm` | Scale bar size in nm or `-1` for auto-detection | `--scale-bar-nm 200` |
-| `--ocr-backend` | OCR engine: `tesseract`, `easyocr`, or `auto` | `--ocr-backend tesseract` |
-| `--verify-scale-bar` | Prompt user to verify detected scale | `--verify-scale-bar` |
+| Parameter           | Description                                     | Example                  |
+|---------------------|-------------------------------------------------|--------------------------|
+| `--mode`            | Processing mode: `single` or `batch`            | `--mode single`          |
+| `--input`           | Input image path or folder                      | `--input image.png`      |
+| `--algo`            | Segmentation algorithm: `classical`             | `--algo classical`       |
+| `--min-size`        | Minimum particle size (nm)                      | `--min-size 3`           |
+| `--scale-bar-nm`    | Scale bar size in nm or `-1` for auto-detection | `--scale-bar-nm 200`     |
+| `--ocr-backend`     | OCR engine: `tesseract`, `easyocr`, or `auto`   | `--ocr-backend tesseract`|
+| `--verify-scale-bar`| Prompt user to verify detected scale            | `--verify-scale-bar`     |
 
 ---
 
@@ -357,6 +360,7 @@ Morphology analysis generates additional outputs:
 4. `nanoparticle_data.csv` - Includes morphology classification and shape metrics
 
 ### Example Console Output
+(To be added)
 
 ## Batch Mode Outputs
 
@@ -370,6 +374,7 @@ All particles from all images with source tracking:
 Image,Particle_ID,Diameter_nm,Morphology,Aspect_Ratio,Circularity,Solidity,Extent
 sample_1.png,1,42.5,Spherical,1.2,0.85,0.92,0.78
 sample_2.png,1,56.2,Rod-like,2.3,0.65,0.87,0.71
+```
 
 ## Troubleshooting
 
@@ -377,21 +382,17 @@ sample_2.png,1,56.2,Rod-like,2.3,0.65,0.87,0.71
 
 **Solutions:**
 
-1. **✅ Use manual scale calculation** (most reliable):
+1. **Use manual scale calculation** (most reliable):
    ```bash
-   # Measure scale bar, calculate ratio, then:
-   python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm 0.75
+   # Open the image and read the scale bar size from the image, and fed to the CLI command:
+   python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm 200
    ```
 
-2. **White or light-colored scale bars fail detection**:
-   - These are difficult for automatic detection
-   - **Solution**: Always use manual calculation for light scale bars
-
-3. **Verify detected scale**:
+2. **Verify detected scale bar**:
    ```bash
    python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract --verify-scale-bar
    ```
-   This will prompt you to confirm the detected scale value.
+   This will prompt you to confirm the detected scale bar.
 
 ---
 
@@ -406,7 +407,7 @@ sample_2.png,1,56.2,Rod-like,2.3,0.65,0.87,0.71
    python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract
    ```
 
-2. **Use manual scale calculation** (no OCR needed):
+2. **Use manual scale bar text input** (no OCR needed):
    ```bash
    python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm 200
    ```
@@ -452,7 +453,7 @@ pip install pytesseract
 **Solutions:**
 
 1. **Process in smaller batches**
-2. **Use manual scale** to skip OCR
+2. **Use manual scale bar text** to skip OCR
 3. **Consider downsampling** very high-resolution images (if scientifically appropriate)
 4. **Use GPU** if available for EasyOCR
 
@@ -471,7 +472,7 @@ pip install pytesseract
 
 ## Example Results
 
-*(You can add sample figures here)*
+*(Need add sample figures here)*
 
 - **Raw SEM Image**
   ![SEM Raw](sample_image_1.tif)
@@ -488,14 +489,13 @@ pip install pytesseract
 
 - [ ] Integrate **AI-assisted segmentation** (U-Net, Mask R-CNN)
 - [ ] Extend support for **TEM images with diffraction patterns**
-- [ ] Advanced morphology analysis (aspect ratio, circularity, shape factor)
 - [ ] Jupyter Notebook integration for reproducible workflows
 - [ ] Batch processing with parallel execution
 - [ ] GUI interface for non-programmers
 
 ---
 
-## Contributing
+<!-- ## Contributing
 
 Contributions are welcome! Please fork the repo and submit a pull request.
 
@@ -505,7 +505,7 @@ Contributions are welcome! Please fork the repo and submit a pull request.
 - Ensure PEP8 compliance
 - Add unit tests where appropriate
 
----
+--- -->
 
 ## License
 
@@ -520,7 +520,7 @@ This project is licensed under the **MIT License** – see the [LICENSE](LICENSE
 If you use NanoPSD in academic work, please cite:
 
 ```
-Huq, M.F. (2025). NanoPSD: Automated Nanoparticle Size Distribution Analysis
+Huq, M.F. (2025). NanoPSD: Automated Nanoparticle Size and Morphology Distribution Analysis
 from Electron Microscopy Images. GitHub repository.
 https://github.com/Huq2090/NanoPSD
 ```

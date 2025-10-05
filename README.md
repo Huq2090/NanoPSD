@@ -260,8 +260,7 @@ batch_images/
     batch_sample_1.tif
     batch_sample_2.tif
     batch_sample_3.tif
-
-### OCR Backend Options
+```
 
 ### OCR Backend Options
 

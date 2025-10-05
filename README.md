@@ -70,10 +70,13 @@ NanoPSD/
 ├── requirements.txt           # Python dependencies
 ├── imglab_environment.yml     # Conda environment
 ├── main.py                    # Entry point (calls CLI & pipeline)
-├── sample_image_1.png
-├── sample_image_2.png
-├── sample_image_3.png
-├── sample_image_4.tif
+├── sample images for single image processing
+│   ├── sample_image_1.tif
+│   └── sample_image_2.png
+├── batch_images/              # Sample folder for batch mode testing
+│   ├── batch_sample_1.tif
+│   ├── batch_sample_2.tif
+│   └── batch_sample_3.tif
 │
 ├── pipeline/                  # Orchestrates the full workflow
 │   ├── __init__.py
@@ -184,7 +187,7 @@ pip install easyocr torch torchvision
 
 **Example:**
 ```bash
-python main.py --mode single --input sample_image_1.png --algo classical --min-size 3 --scale-bar-nm 200
+python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm 200
 ```
 
 #### Method 2: Automatic Detection (Requires OCR)
@@ -193,13 +196,13 @@ Use `--scale-bar-nm -1` to enable automatic scale bar detection:
 
 ```bash
 # CPU-friendly (Tesseract)
-python main.py --mode single --input sample_image_1.png --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract
+python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract
 
 # GPU-accelerated (EasyOCR - requires CUDA)
-python main.py --mode single --input sample_image_1.png --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend easyocr
+python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend easyocr
 
 # With verification prompt
-python main.py --mode single --input sample_image_1.png --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract --verify-scale-bar
+python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract --verify-scale-bar
 ```
 
 **⚠️ Important Notes on Automatic Detection:**
@@ -214,12 +217,12 @@ python main.py --mode single --input sample_image_1.png --algo classical --min-s
 
 **Recommended (with manual scale):**
 ```bash
-python main.py --mode single --input sample_image_1.png --algo classical --min-size 3 --scale-bar-nm 200
+python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm 200
 ```
 
 **With automatic scale detection:**
 ```bash
-python main.py --mode single --input sample_image_1.png --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract
+python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract
 ```
 
 ### Batch Image Analysis
@@ -235,6 +238,26 @@ python main.py --mode batch --input ./batch_images --algo classical --min-size 3
 python main.py --mode batch --input ./batch_images --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract
 ```
 ---
+
+**Per-Image Outputs** (same as single mode):
+- Individual histograms (`{image}_histogram.png`)
+- Individual contour overlays (`{image}_contours.png`)
+- Individual morphology overlays (`{image}_morphology_overlay.png`)
+- Individual morphology charts (`{image}_morphology_*.png`)
+
+**Aggregate Batch Outputs:**
+- `batch_all_particles.csv` - Combined dataset from all images
+- `batch_summary.csv` - Summary statistics per image
+- `batch_histogram_comparison.png` - Side-by-side histograms
+- `batch_morphology_comparison.png` - Morphology distribution comparison
+- `batch_summary_table.png` - Statistical summary table
+
+**Example batch folder:**
+```bash
+batch_images/
+    batch_sample_1.tif
+    batch_sample_2.tif
+    batch_sample_3.tif
 
 ### OCR Backend Options
 
@@ -357,7 +380,7 @@ sample_2.png,1,56.2,Rod-like,2.3,0.65,0.87,0.71
 1. **✅ Use manual scale calculation** (most reliable):
    ```bash
    # Measure scale bar, calculate ratio, then:
-   python main.py --mode single --input image.png --algo classical --min-size 3 --scale-bar-nm 0.75
+   python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm 0.75
    ```
 
 2. **White or light-colored scale bars fail detection**:
@@ -366,7 +389,7 @@ sample_2.png,1,56.2,Rod-like,2.3,0.65,0.87,0.71
 
 3. **Verify detected scale**:
    ```bash
-   python main.py --mode single --input image.png --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract --verify-scale-bar
+   python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract --verify-scale-bar
    ```
    This will prompt you to confirm the detected scale value.
 
@@ -380,12 +403,12 @@ sample_2.png,1,56.2,Rod-like,2.3,0.65,0.87,0.71
 
 1. **Switch to Tesseract** (fastest OCR option for CPU):
    ```bash
-   python main.py --mode single --input image.png --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract
+   python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract
    ```
 
 2. **Use manual scale calculation** (no OCR needed):
    ```bash
-   python main.py --mode single --input image.png --algo classical --min-size 3 --scale-bar-nm 200
+   python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm 200
    ```
 
 3. **If you have a GPU**, ensure PyTorch with CUDA is installed:
@@ -451,7 +474,7 @@ pip install pytesseract
 *(You can add sample figures here)*
 
 - **Raw SEM Image**
-  ![SEM Raw](sample_image_1.png)
+  ![SEM Raw](sample_image_1.tif)
 
 - **Segmented Overlay**
   *(example segmented image output)*

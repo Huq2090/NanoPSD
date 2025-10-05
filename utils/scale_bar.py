@@ -461,6 +461,15 @@ def detect_scale_bar(
             if aspect < 5.0:
                 continue
 
+            # CRITICAL: Reject candidates that are too large (entire black strips)
+            # Scale bar should be thin - reject if height is too large
+            if ch > min(50, rh * 0.2):  # Max 50 pixels OR 20% of ROI height
+                continue
+
+            # Also reject if the bar is suspiciously wide (covers most of bottom)
+            if cw > rw * 0.7:  # Wider than 70% of image width
+                continue
+
             area = cv2.contourArea(cnt)
             rect_area = cw * ch
             extent = area / max(rect_area, 1)

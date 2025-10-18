@@ -1,15 +1,16 @@
 # Import OpenCV for image processing functions
 import cv2
 
+
 def preprocess_image(image_path):
     """
     Preprocesses a microscopy image by enhancing contrast, smoothing, and thresholding.
-    
+
     Parameters:
     -----------
     image_path : str
         Path to the grayscale input image.
-    
+
     Returns:
     --------
     binary : np.ndarray (bool)
@@ -17,10 +18,13 @@ def preprocess_image(image_path):
     image : np.ndarray (uint8)
         The original grayscale image.
     """
-    
+
     # Step 1: Read the image in grayscale mode
     # Grayscale simplifies analysis and is appropriate for microscopy images
     image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+
+    # Normalize first for better visualization later
+    image = cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX)
 
     # Step 2: Create a CLAHE (Contrast Limited Adaptive Histogram Equalization) object
     # clipLimit controls contrast enhancement (higher = more enhancement)
@@ -50,5 +54,3 @@ def preprocess_image(image_path):
     # Step 7: Return the binary image as a boolean array (True = foreground particle)
     # and the original grayscale image (used for visualization or further analysis)
     return binary > 0, image
-
-

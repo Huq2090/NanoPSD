@@ -92,7 +92,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--scale-bar-nm",
         type=float,
-        required=True,
+        required=False,
+        default=None,
         metavar="VALUE",
         help=(
             "Scale bar length in nanometers:\n"
@@ -120,6 +121,28 @@ def build_parser() -> argparse.ArgumentParser:
             "  'compare'   = Run both and generate comparison report (not yet implemented)\n"
             "\n"
             "Note: Only 'classical' is currently available."
+        ),
+    )
+
+    # ADD new --nm-per-pixel argument
+    p.add_argument(
+        "--nm-per-pixel",
+        type=float,
+        required=False,
+        default=None,
+        metavar="VALUE",
+        help=(
+            "Direct calibration for images WITHOUT scale bars.\n"
+            "Provide the conversion factor: nanometers per pixel.\n"
+            "\n"
+            "Use this when:\n"
+            "  - Image has no scale bar\n"
+            "  - You know the exact nm/pixel value from microscope settings\n"
+            "\n"
+            "Example:\n"
+            "  --nm-per-pixel 2.5\n"
+            "\n"
+            "NOTE: Use EITHER --scale-bar-nm OR --nm-per-pixel (not both)\n"
         ),
     )
 
@@ -182,38 +205,25 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def parse_args():
-    """
-    Parse command-line arguments from sys.argv.
+    parser = build_parser()
+    args = parser.parse_args()
 
-    This is a thin wrapper around build_parser().parse_args() for convenience.
-    By separating parser construction from parsing, we make testing easier
-    (can construct parser without immediately parsing sys.argv).
+    # Check if user provided scale_bar_nm
+    has_scale_bar = args.scale_bar_nm is not None
 
-    Returns
-    -------
-    args : argparse.Namespace
-        Parsed arguments as an object with attributes matching argument names
+    # Check if user provided nm_per_pixel
+    has_nm_per_px = args.nm_per_pixel is not None
 
-        Example attributes:
-        - args.mode: "single" or "batch"
-        - args.input: path to image or folder
-        - args.scale: float (scale bar length in nm, or -1 for OCR)
-        - args.algo: segmentation algorithm choice
-        - args.min_size: minimum particle size in pixels
-        - args.ocr_backend: "auto", "easyocr", or "tesseract"
+    # Error if NEITHER provided
+    if not has_scale_bar and not has_nm_per_px:
+        parser.error(
+            "Must provide calibration method:\n"
+            "  Either: --scale-bar-nm VALUE\n"
+            "  Or:     --nm-per-pixel VALUE"
+        )
 
-    Raises
-    ------
-    SystemExit
-        If required arguments are missing or invalid values provided
-        (argparse handles this automatically with helpful error messages)
+    # Error if BOTH provided
+    if has_scale_bar and has_nm_per_px:
+        parser.error("Cannot use both --scale-bar-nm and --nm-per-pixel together")
 
-    Example Usage
-    -------------
-    >>> from scripts.cli import parse_args
-    >>> args = parse_args()
-    >>> print(f"Processing: {args.input}")
-    >>> print(f"Scale: {args.scale} nm")
-    >>> print(f"OCR Backend: {args.ocr_backend}")
-    """
-    return build_parser().parse_args()
+    return args

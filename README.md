@@ -8,6 +8,8 @@ It supports both **single-image** and **batch image** analysis, providing a modu
 
 ## Features
 - Automated **scale bar & text exclusion** from images
+- **Manual calibration mode** for images without scale bars (direct nm/pixel input)
+- **Particle segmentation** using classical methods (Otsu thresholding, preprocessing filters)
 - **Particle segmentation** using classical methods (Otsu thresholding, preprocessing filters)
 - **Size extraction & visualization** (histograms, plots, CSV export)
 - **Classification of nanoparticles** based on **morphology**
@@ -213,19 +215,50 @@ python main.py --mode single --input sample_image_1.tif --algo classical --min-s
 - EasyOCR on CPU is extremely slow (hours) - use Tesseract or manual calculation
 - Manual scale bar size parameter input is always faster and more reliable
 
+### Method 3: Manual Calibration (For Images Without Scale Bars)
+
+If your images **do not have scale bars** but you know the calibration factor from microscope settings:
+````bash
+# Provide nm-per-pixel directly
+python main.py --mode single --input no_scalebar.tif --algo classical --min-size 3 --nm-per-pixel 2.5
+
+# Batch mode with manual calibration
+python main.py --mode batch --input ./images --algo classical --min-size 3 --nm-per-pixel 1.8
+````
+
+**When to use this:**
+- Images without visible scale bars
+- You have calibration data from microscope metadata
+- Faster processing (skips scale bar detection entirely)
+
+**How to determine nm-per-pixel:**
+- Check microscope settings/metadata
+- Calculate from known magnification: `nm_per_pixel = (pixel_size_µm × 1000) / magnification`
+- Example: 5µm pixel at 10,000x magnification = (5 × 1000) / 10000 = 0.5 nm/pixel
+
+**⚠️ Important for batch mode:**
+- All images in the folder must have the **same calibration** (same magnification/nm-per-pixel)
+- If images have different magnifications, process them in separate batches with different `--nm-per-pixel` values
+- For mixed magnifications with scale bars, use `--scale-bar-nm -1` (auto-detection) instead
+
 ---
 
 ### Single Image Analysis
 
 **Recommended (with manual scale):**
-```bash
+````bash
 python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm 200
-```
+````
+
+**For images without scale bars:**
+````bash
+python main.py --mode single --input no_scalebar.tif --algo classical --min-size 3 --nm-per-pixel 2.5
+````
 
 **With automatic scale detection:**
-```bash
+````bash
 python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract
-```
+````
 
 ### Batch Image Analysis
 
@@ -238,6 +271,9 @@ python main.py --mode batch --input ./batch_images --algo classical --min-size 3
 
 # With automatic scale detection (each image detected separately)
 python main.py --mode batch --input ./batch_images --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract
+
+# For images without scale bars (known calibration)
+python main.py --mode batch --input ./batch_images --algo classical --min-size 3 --nm-per-pixel 1.8
 ```
 ---
 
@@ -284,7 +320,20 @@ batch_images/
 
 ## Command-Line Parameters
 
-| Parameter           | Description                                     | Example                  |
+| Parameter           | Description                                     | Example                  | Required |
+|---------------------|-------------------------------------------------|--------------------------|----------|
+| `--mode`            | Processing mode: `single` or `batch`            | `--mode single`          | Yes      |
+| `--input`           | Input image path or folder                      | `--input image.png`      | Yes      |
+| `--algo`            | Segmentation algorithm: `classical`             | `--algo classical`       | Yes      |
+| `--min-size`        | Minimum particle size (nm)                      | `--min-size 3`           | Yes      |
+| `--scale-bar-nm`    | Scale bar size in nm or `-1` for auto-detection. Use with images that have scale bars. | `--scale-bar-nm 200` | One of these* |
+| `--nm-per-pixel`    | Direct calibration (nm/pixel). Use for images WITHOUT scale bars. | `--nm-per-pixel 2.5` | One of these* |
+| `--ocr-backend`     | OCR engine: `tesseract`, `easyocr`, or `auto`   | `--ocr-backend tesseract`| No       |
+| `--verify-scale-bar`| Prompt user to verify detected scale            | `--verify-scale-bar`     | No       |
+
+\* **Must provide either `--scale-bar-nm` OR `--nm-per-pixel` (not both)**
+
+<!-- | Parameter           | Description                                     | Example                  |
 |---------------------|-------------------------------------------------|--------------------------|
 | `--mode`            | Processing mode: `single` or `batch`            | `--mode single`          |
 | `--input`           | Input image path or folder                      | `--input image.png`      |
@@ -292,7 +341,7 @@ batch_images/
 | `--min-size`        | Minimum particle size (nm)                      | `--min-size 3`           |
 | `--scale-bar-nm`    | Scale bar size in nm or `-1` for auto-detection | `--scale-bar-nm 200`     |
 | `--ocr-backend`     | OCR engine: `tesseract`, `easyocr`, or `auto`   | `--ocr-backend tesseract`|
-| `--verify-scale-bar`| Prompt user to verify detected scale            | `--verify-scale-bar`     |
+| `--verify-scale-bar`| Prompt user to verify detected scale            | `--verify-scale-bar`     | -->
 
 ---
 
@@ -467,6 +516,25 @@ pip install pytesseract
 2. **Overlapping particles**: May require manual separation or AI segmentation
 3. **Non-uniform background**: Try adjusting CLAHE parameters
 4. **Wrong minimum size**: Adjust `--min-size` parameter
+
+---
+
+### Problem: Images don't have scale bars
+
+**Solution**: Use manual calibration mode with `--nm-per-pixel`:
+```bash
+python main.py --mode single --input image.tif --algo classical --min-size 3 --nm-per-pixel 2.5
+```
+
+**How to find nm-per-pixel:**
+1. Check microscope metadata/settings
+2. Calculate from magnification: `(pixel_size_µm × 1000) / magnification`
+3. Use ImageJ/Fiji: Set scale manually and read calibration
+
+**Example calculation:**
+- Pixel size: 5 µm
+- Magnification: 10,000x
+- nm/pixel = (5 × 1000) / 10000 = **0.5 nm/pixel**
 
 ---
 

@@ -119,6 +119,7 @@ def main() -> None:
         batch=(args.mode == "batch"),  # Single vs batch mode
         # Scale calibration
         scale_bar_nm=args.scale_bar_nm,  # Physical scale in nm (-1 = use OCR)
+        nm_per_pixel=args.nm_per_pixel,  # Direct nm/pixel input
         # Segmentation parameters
         mode=args.algo,  # "classical" (only one implemented now)
         min_size_px=args.min_size,  # Minimum particle size filter (pixels)

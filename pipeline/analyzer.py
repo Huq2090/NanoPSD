@@ -108,13 +108,14 @@ class NanoparticleAnalyzer:
     def __init__(
         self,
         image_path: str,
-        scale_bar_nm: float,
+        scale_bar_nm: float = None,  # Optional input flag
         batch: bool = False,
         extensions: Tuple[str, ...] = (".png", ".tif", ".tiff", ".jpg", ".jpeg"),
         min_size_px: int = 3,
         mode: str = "classical",
         ocr_backend: str = "auto",
         verify_scale_bar: bool = False,
+        nm_per_pixel: float = None,  # Adding capability to directly input nm_per_pixel
     ) -> None:
         """
         Initialize the analyzer with user parameters.
@@ -126,11 +127,18 @@ class NanoparticleAnalyzer:
             - Single mode: path to one image file (e.g., "sample.tif")
             - Batch mode: path to folder containing images (e.g., "./images/")
 
-        scale_bar_nm : float
+        scale_bar_nm : float, optional
             Physical length of the scale bar in nanometers
             - Positive value (e.g., 200.0): use this as known scale
             - -1: attempt automatic OCR detection of scale bar text
             - 0: invalid, will cause error
+            - None: not using scale bar (must provide nm_per_pixel)
+
+        nm_per_pixel : float, optional
+            - Direct calibration factor for images without scale bars.
+            - When provided, scale bar detection is skipped entirely.
+
+            NOTE: Provide EITHER scale_bar_nm OR nm_per_pixel (not both)
 
         batch : bool, optional
             Processing mode selection (default: False)
@@ -173,16 +181,31 @@ class NanoparticleAnalyzer:
         """
         # Store all parameters as instance attributes
         self.image_path = image_path
-        self.scale_bar_nm = float(scale_bar_nm)
+        self.scale_bar_nm = float(scale_bar_nm) if scale_bar_nm is not None else None
         self.batch_mode = bool(batch)
         self.extensions = tuple(extensions)
         self.min_size_px = int(min_size_px)
         self.mode = mode
         self.ocr_backend = ocr_backend  # Store OCR backend choice
         self.verify_scale_bar = verify_scale_bar  # Store scale bar verification flag
+        self.nm_per_pixel_manual = nm_per_pixel  # Direct nm/pixel input
 
         # Store results for batch aggregation
         self.batch_results = []  # Will hold DataFrames from each image
+
+        # Validate: exactly one calibration method
+        has_scale_bar = self.scale_bar_nm is not None
+        has_nm_per_px = self.nm_per_pixel_manual is not None
+
+        if not has_scale_bar and not has_nm_per_px:
+            raise ValueError(
+                "Must provide calibration: either scale_bar_nm OR nm_per_pixel"
+            )
+
+        if has_scale_bar and has_nm_per_px:
+            raise ValueError(
+                "Cannot use both scale_bar_nm and nm_per_pixel - choose one"
+            )
 
         # Guard against unimplemented modes
         if self.mode != "classical":
@@ -309,9 +332,9 @@ class NanoparticleAnalyzer:
         ---------------
         1. Detect scale bar (geometric detection + bounding box + mask)
         2. Determine physical scale:
-           - If user provided --scale-bar-nm N: use N
-           - If user provided --scale-bar-nm -1: attempt OCR
-           - OCR uses the specified backend (auto/easyocr/tesseract)
+        - If user provided --scale-bar-nm N: use N
+        - If user provided --scale-bar-nm -1: attempt OCR
+        - OCR uses the specified backend (auto/easyocr/tesseract)
         3. Compute nm-per-pixel calibration factor
         4. Preprocess image (CLAHE + threshold → binary mask)
         5. Mask out scale bar region (prevent it being counted as particle)
@@ -347,71 +370,83 @@ class NanoparticleAnalyzer:
             logging.info(f"Processing: {base}")
 
             # -----------------------------------------------------------------
-            # Step 1: Detect scale bar (geometric detection)
+            # Step 1: Determine Calibration Mode
             # -----------------------------------------------------------------
-            # Returns:
-            # - scale_bar_px: length of bar in pixels
-            # - bar_bbox: (x, y, w, h) bounding box coordinates
-            # - bar_mask: binary mask (255 inside bar region, 0 elsewhere)
-            # - _: visualization (not used here, saved by detect_scale_bar)
-            scale_bar_px, bar_bbox, bar_mask, _ = detect_scale_bar(
-                img_path, save_debug=True, debug_dir="outputs/figures"
-            )
 
-            # -----------------------------------------------------------------
-            # Step 2: Determine effective scale value (manual or OCR)
-            # -----------------------------------------------------------------
-            # Start with user-provided value
-            eff_scale_nm = float(self.scale_bar_nm) if self.scale_bar_nm > 0 else None
+            if self.nm_per_pixel_manual is not None:
+                # MODE A: Manual calibration (no scale bar)
+                logging.info("⚙️  Manual calibration mode (no scale bar)")
+                nm_per_pixel = self.nm_per_pixel_manual
+                bar_mask = None
+                logging.info(f"Calibration: {nm_per_pixel:.4f} nm/pixel (manual)")
 
-            # Initialize text_bbox (will be set by OCR if used)
-            text_bbox = None
+            else:
+                # MODE B: Scale bar detection (existing code)
+                logging.info("📏 Scale bar detection mode")
 
-            # If scale not provided or is -1, try OCR
-            if eff_scale_nm is None or eff_scale_nm <= 0:
-                try:
-                    ocr_result = detect_scale_label(
-                        img_path,
-                        bar_bbox,
-                        save_debug=True,
-                        debug_dir="outputs/figures",
-                        ocr_backend=self.ocr_backend,
-                    )
-                    if ocr_result:
-                        if isinstance(ocr_result, tuple):
-                            ocr_nm, text_bbox = ocr_result
-                        else:
-                            ocr_nm = ocr_result
-
-                        if ocr_nm:
-                            eff_scale_nm = float(ocr_nm)
-                            if text_bbox:
-                                logging.info(f"OCR found text at: {text_bbox}")
-                except Exception as e:
-                    logging.warning(f"OCR error: {e}")
-
-            # Verification if requested
-            if self.verify_scale_bar:
-                if not self._show_verification(
-                    img_path, bar_bbox, scale_bar_px, eff_scale_nm
-                ):
-                    logging.warning(f"User rejected: {base}")
-                    return
-
-            # Final validation: must have a valid scale at this point
-            if (eff_scale_nm is None) or (eff_scale_nm <= 0):
-                raise ValueError(
-                    "No valid scale value found (neither CLI --scale-bar-nm nor OCR)."
+                # -----------------------------------------------------------------
+                # Step 1: Detect scale bar (geometric detection)
+                # -----------------------------------------------------------------
+                scale_bar_px, bar_bbox, bar_mask, _ = detect_scale_bar(
+                    img_path, save_debug=True, debug_dir="outputs/figures"
                 )
 
-            # -----------------------------------------------------------------
-            # Step 3: Compute calibration factor (nm per pixel)
-            # -----------------------------------------------------------------
-            nm_per_pixel = self._compute_nm_per_pixel(eff_scale_nm, scale_bar_px)
-            logging.info(
-                f"Calibration: {nm_per_pixel:.4f} nm/pixel "
-                f"(bar: {scale_bar_px} px, value: {eff_scale_nm} nm)"
-            )
+                # -----------------------------------------------------------------
+                # Step 2: Determine effective scale value (manual or OCR)
+                # -----------------------------------------------------------------
+                # Start with user-provided value
+                eff_scale_nm = (
+                    float(self.scale_bar_nm) if self.scale_bar_nm > 0 else None
+                )
+
+                # Initialize text_bbox (will be set by OCR if used)
+                text_bbox = None
+
+                # If scale not provided or is -1, try OCR
+                if eff_scale_nm is None or eff_scale_nm <= 0:
+                    try:
+                        ocr_result = detect_scale_label(
+                            img_path,
+                            bar_bbox,
+                            save_debug=True,
+                            debug_dir="outputs/figures",
+                            ocr_backend=self.ocr_backend,
+                        )
+                        if ocr_result:
+                            if isinstance(ocr_result, tuple):
+                                ocr_nm, text_bbox = ocr_result
+                            else:
+                                ocr_nm = ocr_result
+
+                            if ocr_nm:
+                                eff_scale_nm = float(ocr_nm)
+                                if text_bbox:
+                                    logging.info(f"OCR found text at: {text_bbox}")
+                    except Exception as e:
+                        logging.warning(f"OCR error: {e}")
+
+                # Verification if requested
+                if self.verify_scale_bar:
+                    if not self._show_verification(
+                        img_path, bar_bbox, scale_bar_px, eff_scale_nm
+                    ):
+                        logging.warning(f"User rejected: {base}")
+                        return
+
+                # Final validation: must have a valid scale at this point
+                if (eff_scale_nm is None) or (eff_scale_nm <= 0):
+                    raise ValueError(
+                        "No valid scale value found (neither CLI --scale-bar-nm nor OCR)."
+                    )
+
+                # -----------------------------------------------------------------
+                # Step 3: Compute calibration factor (nm per pixel)
+                # -----------------------------------------------------------------
+                nm_per_pixel = self._compute_nm_per_pixel(eff_scale_nm, scale_bar_px)
+                logging.info(
+                    f"Calibration: {nm_per_pixel:.4f} nm/pixel "
+                    f"(bar: {scale_bar_px} px, value: {eff_scale_nm} nm)"
+                )
 
             # -----------------------------------------------------------------
             # Step 4: Preprocess image to binary mask
@@ -432,7 +467,7 @@ class NanoparticleAnalyzer:
                 binary[bar_mask > 0] = False
 
                 # Tier 1: Use OCR-detected text location (most precise)
-                if text_bbox is not None:
+                if "text_bbox" in locals() and text_bbox is not None:
                     tx, ty, tw, th = text_bbox
                     pad = 15
                     ty1 = max(0, ty - pad)
@@ -444,7 +479,7 @@ class NanoparticleAnalyzer:
                     logging.info(f"Excluded OCR text at ({tx},{ty},{tw},{th})")
 
                 # Tier 2: Geometric exclusion around bar (for manual scale mode)
-                else:
+                elif "bar_bbox" in locals():
                     logging.info("Using geometric text exclusion around scale bar")
                     bx, by, bw, bh = bar_bbox
 
@@ -459,11 +494,14 @@ class NanoparticleAnalyzer:
                     binary[ty1:ty2, tx1:tx2] = False
                     logging.info(f"Excluded area: ({tx1},{ty1}) to ({tx2},{ty2})")
 
-            # Tier 3: Fallback if no bar detected at all
+                # Tier 3: Fallback if no bar detected at all
+                else:
+                    logging.warning("No scale bar detected - excluding bottom 15%")
+                    h, w = binary.shape
+                    binary[int(h * 0.85) :, :] = False
             else:
-                logging.warning("No scale bar detected - excluding bottom 15%")
-                h, w = binary.shape
-                binary[int(h * 0.85) :, :] = False
+                # No scale bar - Skip all Masking
+                logging.info("✓ No scale bar masking needed (manual calibration)")
 
             # -----------------------------------------------------------------
             # Step 6: Segment particles

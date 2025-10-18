@@ -16,7 +16,7 @@ def measure_particles(
     nm_per_pixel,
     image_path,
     min_diam_nm=5,
-    max_diam_nm=35,
+    max_diam_nm=1000,
 ):
     """
     Measures the diameters of segmented nanoparticles and overlays contours on the original image.
@@ -41,8 +41,21 @@ def measure_particles(
         Measured diameters (in nanometers) of valid particles.
     """
 
-    # Convert grayscale image to BGR (3-channel) so we can draw colored contours
-    true_contour_img = cv2.cvtColor(original_image, cv2.COLOR_GRAY2BGR)
+    # Reload original image
+    img_for_overlay = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+
+    # Normalize to full 0-255 range
+    img_for_overlay = cv2.normalize(img_for_overlay, None, 0, 255, cv2.NORM_MINMAX)
+
+    # Apply strong CLAHE for visibility
+    clahe = cv2.createCLAHE(clipLimit=5.0, tileGridSize=(8, 8))
+    img_for_overlay = clahe.apply(img_for_overlay)
+
+    # Convert to BGR
+    img_for_overlay = cv2.cvtColor(img_for_overlay, cv2.COLOR_GRAY2BGR)
+
+    # Use for all contour overlays
+    true_contour_img = img_for_overlay.copy()
     circular_img = true_contour_img.copy()
     elliptical_img = true_contour_img.copy()
     combined_img = true_contour_img.copy()
@@ -105,10 +118,17 @@ def measure_particles(
             for contour in contours:
                 if len(contour) >= 5:
                     ellipse = cv2.fitEllipse(contour)
-                    cv2.ellipse(
-                        elliptical_img, ellipse, (255, 0, 255), CONTOUR_THICKNESS
-                    )
-                    cv2.ellipse(combined_img, ellipse, (255, 0, 255), CONTOUR_THICKNESS)
+                    # Validate ellipse dimensions before drawing
+                    (center, axes, angle) = ellipse
+                    if (
+                        axes[0] > 0 and axes[1] > 0
+                    ):  # Check width and height are positive
+                        cv2.ellipse(
+                            elliptical_img, ellipse, (255, 0, 255), CONTOUR_THICKNESS
+                        )
+                        cv2.ellipse(
+                            combined_img, ellipse, (255, 0, 255), CONTOUR_THICKNESS
+                        )
 
             # Morphology Classification
             # Calculate shape metrics
@@ -179,7 +199,7 @@ def measure_particles(
     print(" -", all_path)
 
     # Morphology overlay
-    morphology_overlay = cv2.cvtColor(original_image, cv2.COLOR_GRAY2BGR)
+    morphology_overlay = img_for_overlay.copy()
 
     color_map = {
         "spherical": (0, 255, 0),  # Green

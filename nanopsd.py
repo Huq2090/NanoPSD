@@ -44,9 +44,113 @@ python3 main.py --help
 import os
 import sys
 
-# Local imports
-from scripts.cli import parse_args
-from pipeline.analyzer import NanoparticleAnalyzer
+
+def show_usage_examples() -> None:
+    """
+    Display comprehensive usage examples when script is run without arguments.
+    """
+    print("\n" + "=" * 80)
+    print("NanoPSD - Nanoparticle Size Distribution Analyzer")
+    print("=" * 80)
+    print("\nUsage: python3 nanopsd.py [OPTIONS]")
+    print("\nYou must provide command-line arguments. Here are common examples:\n")
+
+    print("─" * 80)
+    print("📋 BASIC EXAMPLES")
+    print("─" * 80)
+
+    print("\n1️⃣  Single image with manual scale bar value:")
+    print("   python3 nanopsd.py --mode single --input sample.tif \\")
+    print("                      --scale-bar-nm 200 --algo classical --min-size 3")
+
+    print("\n2️⃣  Single image without scale bar (manual calibration):")
+    print("   python3 nanopsd.py --mode single --input sample.tif \\")
+    print("                      --nm-per-pixel 2.5 --algo classical --min-size 3")
+
+    print("\n3️⃣  Batch processing with manual scale:")
+    print("   python3 nanopsd.py --mode batch --input ./images/ \\")
+    print("                      --scale-bar-nm 200 --algo classical --min-size 3")
+
+    print("\n4️⃣  Batch processing without scale bars:")
+    print("   python3 nanopsd.py --mode batch --input ./images/ \\")
+    print("                      --nm-per-pixel 1.8 --algo classical --min-size 3")
+
+    print("\n" + "─" * 80)
+    print("🔍 OCR-BASED SCALE BAR DETECTION")
+    print("─" * 80)
+
+    print("\n5️⃣  Auto-detect scale bar with Tesseract (CPU, fast):")
+    print("   python3 nanopsd.py --mode single --input sample.tif \\")
+    print("                      --scale-bar-nm -1 --ocr-backend tesseract \\")
+    print("                      --algo classical --min-size 3")
+
+    print("\n6️⃣  Auto-detect scale bar with EasyOCR (GPU, accurate):")
+    print("   python3 nanopsd.py --mode single --input sample.tif \\")
+    print("                      --scale-bar-nm -1 --ocr-backend easyocr \\")
+    print("                      --algo classical --min-size 3")
+
+    print("\n7️⃣  Auto-detect with fallback (try EasyOCR, then Tesseract):")
+    print("   python3 nanopsd.py --mode single --input sample.tif \\")
+    print("                      --scale-bar-nm -1 --ocr-backend auto \\")
+    print("                      --algo classical --min-size 3")
+
+    print("\n" + "─" * 80)
+    print("✅ SCALE BAR VERIFICATION")
+    print("─" * 80)
+
+    print("\n8️⃣  Manual verification of detected scale bar:")
+    print("   python3 nanopsd.py --mode single --input sample.tif \\")
+    print("                      --scale-bar-nm -1 --ocr-backend tesseract \\")
+    print("                      --verify-scale-bar --algo classical --min-size 3")
+
+    print("\n" + "─" * 80)
+    print("📊 BATCH PROCESSING EXAMPLES")
+    print("─" * 80)
+
+    print("\n9️⃣  Batch with auto-detection (each image detected separately):")
+    print("   python3 nanopsd.py --mode batch --input ./images/ \\")
+    print("                      --scale-bar-nm -1 --ocr-backend tesseract \\")
+    print("                      --algo classical --min-size 5")
+
+    print("\n🔟 Batch with verification prompts:")
+    print("   python3 nanopsd.py --mode batch --input ./images/ \\")
+    print("                      --scale-bar-nm -1 --ocr-backend tesseract \\")
+    print("                      --verify-scale-bar --algo classical --min-size 3")
+
+    print("\n" + "─" * 80)
+    print("⚙️  PARAMETER REFERENCE")
+    print("─" * 80)
+
+    print("\n  --mode              : 'single' or 'batch'")
+    print("  --input             : Image path (single) or folder path (batch)")
+    print("  --scale-bar-nm      : Scale bar size in nm, or -1 for auto-detect")
+    print("  --nm-per-pixel      : Direct calibration (for images without scale bars)")
+    print("  --algo              : Segmentation algorithm (currently: 'classical')")
+    print("  --min-size          : Minimum particle size in pixels (e.g., 3, 5)")
+    print("  --ocr-backend       : 'tesseract' (CPU), 'easyocr' (GPU), or 'auto'")
+    print("  --verify-scale-bar  : Enable manual verification of scale detection")
+
+    print("\n" + "─" * 80)
+    print("💡 TIPS")
+    print("─" * 80)
+
+    print("\n  • Fastest: Use --scale-bar-nm with known value (no OCR)")
+    print("  • No scale bar: Use --nm-per-pixel with calibration factor")
+    print("  • CPU systems: Use --ocr-backend tesseract")
+    print("  • GPU systems: Use --ocr-backend easyocr")
+    print("  • Uncertain detection: Add --verify-scale-bar flag")
+    print(
+        "  • Batch mode: All images must have same calibration if using --nm-per-pixel"
+    )
+
+    print("\n" + "─" * 80)
+    print("📖 FULL HELP")
+    print("─" * 80)
+
+    print("\n  For complete parameter documentation, run:")
+    print("  python3 nanopsd.py --help")
+
+    print("\n" + "=" * 80 + "\n")
 
 
 def main() -> None:
@@ -87,6 +191,10 @@ def main() -> None:
         ├── scale_bar_final.png              # Debug: detected scale bar
         └── scale_candidates.png             # Debug: scale bar ROI
     """
+
+    # Local imports: Import heavy dependencies only when running analysis (lazy import)
+    from scripts.cli import parse_args
+    from pipeline.analyzer import NanoparticleAnalyzer
 
     # -------------------------------------------------------------------------
     # Step 1: Parse command-line arguments
@@ -149,11 +257,24 @@ def main() -> None:
 if __name__ == "__main__":
     """
     Standard Python idiom: only run main() if this file is executed directly.
-
-    This allows the module to be imported for testing without running main().
-    Example:
-        python3 main.py            # Runs main()
-        import main                # Does NOT run main()
-        from main import main      # Does NOT run main()
     """
-    main()
+    import sys
+
+    # Handle different argument scenarios
+    if len(sys.argv) == 1:
+        # No arguments - show examples
+        show_usage_examples()
+    elif "--help" in sys.argv or "-h" in sys.argv:
+        # Show examples for --help (instant, no heavy imports)
+        show_usage_examples()
+        print("\n" + "─" * 80)
+        print("For detailed technical help, run: python3 nanopsd.py --help-full")
+        print("─" * 80 + "\n")
+    elif "--help-full" in sys.argv:
+        # Show full argparse help (slower, loads parser)
+        from scripts.cli import build_parser
+
+        build_parser().print_help()
+    else:
+        # Normal execution
+        main()

@@ -73,7 +73,7 @@ NanoPSD/
 ├── README.md                  # Project overview & usage
 ├── requirements.txt           # Python dependencies
 ├── imglab_environment.yml     # Conda environment
-├── main.py                    # Entry point (calls CLI & pipeline)
+├── nanopsd.py                 # Entry point (calls CLI & pipeline)
 ├── sample images              # Sample images for single image processing
 │   ├── sample_image_1.tif
 │   └── sample_image_2.png
@@ -140,13 +140,19 @@ git clone https://github.com/Huq2090/NanoPSD.git
 cd NanoPSD
 ```
 
-### 2. Create and activate Conda environment
+### 2. View usage examples (optional)
+```bash
+python3 nanopsd.py
+# Displays comprehensive usage examples and common commands
+```
+
+### 3. Create and activate Conda environment
 ```bash
 conda create -n imglab python=3.10
 conda activate imglab
 ```
 
-### 3. Install dependencies
+### 4. Install dependencies
 ```bash
 conda install -c conda-forge opencv numpy matplotlib scikit-image scipy pandas pillow
 ```
@@ -157,7 +163,7 @@ conda env create -f imglab_environment.yml
 conda activate imglab
 ```
 
-### 4. (Optional) Install OCR dependencies
+### 5. (Optional) Install OCR dependencies
 Only if you want automatic scale detection:
 
 **For CPU systems (Tesseract):**
@@ -191,7 +197,7 @@ pip install easyocr torch torchvision
 
 **Example:**
 ```bash
-python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm 200
+python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm 200
 ```
 
 #### Method 2: Automatic Detection (Requires OCR)
@@ -200,13 +206,13 @@ Use `--scale-bar-nm -1` to enable automatic scale bar detection:
 
 ```bash
 # CPU-friendly (Tesseract)
-python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract
+python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract
 
 # GPU-accelerated (EasyOCR - requires CUDA)
-python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend easyocr
+python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend easyocr
 
 # With verification prompt
-python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract --verify-scale-bar
+python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract --verify-scale-bar
 ```
 
 **Important Notes on Automatic Detection:**
@@ -220,10 +226,10 @@ python main.py --mode single --input sample_image_1.tif --algo classical --min-s
 If your images **do not have scale bars** but you know the calibration factor from microscope settings:
 ````bash
 # Provide nm-per-pixel directly
-python main.py --mode single --input no_scalebar.tif --algo classical --min-size 3 --nm-per-pixel 2.5
+python3 nanopsd.py --mode single --input no_scalebar.tif --algo classical --min-size 3 --nm-per-pixel 2.5
 
 # Batch mode with manual calibration
-python main.py --mode batch --input ./images --algo classical --min-size 3 --nm-per-pixel 1.8
+python3 nanopsd.py --mode batch --input ./images --algo classical --min-size 3 --nm-per-pixel 1.8
 ````
 
 **When to use this:**
@@ -247,17 +253,17 @@ python main.py --mode batch --input ./images --algo classical --min-size 3 --nm-
 
 **Recommended (with manual scale):**
 ````bash
-python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm 200
+python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm 200
 ````
 
 **For images without scale bars:**
 ````bash
-python main.py --mode single --input no_scalebar.tif --algo classical --min-size 3 --nm-per-pixel 2.5
+python3 nanopsd.py --mode single --input no_scalebar.tif --algo classical --min-size 3 --nm-per-pixel 2.5
 ````
 
 **With automatic scale detection:**
 ````bash
-python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract
+python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract
 ````
 
 ### Batch Image Analysis
@@ -267,13 +273,13 @@ Process multiple images in a folder and generate both **individual outputs** for
 **Basic batch processing:**
 ```bash
 # With manual scale (all images must have same scale)
-python main.py --mode batch --input ./batch_images --algo classical --min-size 3 --scale-bar-nm 200
+python3 nanopsd.py --mode batch --input ./batch_images --algo classical --min-size 3 --scale-bar-nm 200
 
 # With automatic scale detection (each image detected separately)
-python main.py --mode batch --input ./batch_images --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract
+python3 nanopsd.py --mode batch --input ./batch_images --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract
 
 # For images without scale bars (known calibration)
-python main.py --mode batch --input ./batch_images --algo classical --min-size 3 --nm-per-pixel 1.8
+python3 nanopsd.py --mode batch --input ./batch_images --algo classical --min-size 3 --nm-per-pixel 1.8
 ```
 ---
 
@@ -434,12 +440,12 @@ sample_2.png,1,56.2,Rod-like,2.3,0.65,0.87,0.71
 1. **Use manual scale calculation** (most reliable):
    ```bash
    # Open the image and read the scale bar size from the image, and fed to the CLI command:
-   python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm 200
+   python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm 200
    ```
 
 2. **Verify detected scale bar**:
    ```bash
-   python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract --verify-scale-bar
+   python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract --verify-scale-bar
    ```
    This will prompt you to confirm the detected scale bar.
 
@@ -453,12 +459,12 @@ sample_2.png,1,56.2,Rod-like,2.3,0.65,0.87,0.71
 
 1. **Switch to Tesseract** (fastest OCR option for CPU):
    ```bash
-   python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract
+   python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract
    ```
 
 2. **Use manual scale bar text input** (no OCR needed):
    ```bash
-   python main.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm 200
+   python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm 200
    ```
 
 3. **If you have a GPU**, ensure PyTorch with CUDA is installed:
@@ -523,7 +529,7 @@ pip install pytesseract
 
 **Solution**: Use manual calibration mode with `--nm-per-pixel`:
 ```bash
-python main.py --mode single --input image.tif --algo classical --min-size 3 --nm-per-pixel 2.5
+python3 nanopsd.py --mode single --input image.tif --algo classical --min-size 3 --nm-per-pixel 2.5
 ```
 
 **How to find nm-per-pixel:**

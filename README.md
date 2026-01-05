@@ -1,5 +1,5 @@
 # NanoPSD
-**Software Package for Analyzing Plasma-Synthesized Nanoparticle Size and Morphology Distribution**
+**Software Package for Analyzing Plasma-Synthesized Nanoparticle Shape Distribution**
 
 NanoPSD is a production-ready Python package designed to extract **particle size and morphology distributions (PSD)** of **Nanoparticles (NPs)** from **SEM/TEM images**.
 It supports both **single-image** and **batch image** analysis, providing a modular and object-oriented pipeline for nanoparticle research and metrology.
@@ -128,6 +128,36 @@ NanoPSD/
     │   ├── batch_summary.csv            # Per-image statistics
     │   └── sample_image_*_summary.tex
     └── report.tex             # Example LaTeX report
+```
+
+---
+
+## Project Architecture
+```bash
+NanoPSD/
+├── nanopsd.py              # 🚪 Main entry point (start here!)
+├── analyzer.py             # 🧠 Core pipeline orchestrator
+├── cli.py                  # ⚙️ Command-line argument parser
+│
+├── Preprocessing:
+│   └── clahe_filter.py     # Contrast enhancement + thresholding
+│
+├── Scale Bar Detection:
+│   ├── scale_bar.py        # Geometric detection
+│   └── ocr.py              # Text recognition (Tesseract/EasyOCR)
+│
+├── Segmentation:
+│   ├── base.py             # Abstract interface
+│   ├── otsu_impl.py        # Otsu implementation
+│   └── otsu_segment.py     # Classical segmentation
+│
+├── Measurement & Analysis:
+│   ├── size_measurement.py # Particle measurement + morphology
+│   └── plotting.py         # Histograms + visualizations
+│
+└── Configuration:
+    ├── requirements.txt
+    └── imglab_environment.yml
 ```
 
 ---

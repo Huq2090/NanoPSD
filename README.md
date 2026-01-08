@@ -111,6 +111,13 @@ NanoPSD/
 │   ├── ocr.py                 # OCR for scale bar text (EasyOCR/Tesseract)
 │   └── scale_bar.py           # Scale bar detection (hybrid)
 │
+├── docs/                      # Documentation & assets
+│   └── figures/               # Documentation images (README assets)
+│       ├── scale_candidates.png
+│       ├── sample_image_1_true_contours.jpg
+│       ├── sample_image_1_morphology_overlay.jpg
+│       └── sample_image_1_diameter_histogram.png
+│
 ├── notebooks/
 │   └── PSD_Interactive_Analysis.ipynb # Jupyter notebook demo
 │

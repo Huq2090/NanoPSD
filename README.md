@@ -1,7 +1,7 @@
 # NanoPSD
-**Software Package for Analyzing Plasma-Synthesized Nanoparticle Size and Morphology Distribution**
+**Software Package for Analyzing Plasma-Synthesized Nanoparticle Shape Distribution**
 
-NanoPSD is a production-ready Python package designed to extract **particle size and morphology distributions (PSD)** of **Nanoparticles (NPs)** from **SEM/TEM images**.
+NanoPSD is a production-ready Python package designed to extract **particle shape distributions (PSD)** of **Nanoparticles (NPs)** from **TEM/STEM images**.
 It supports both **single-image** and **batch image** analysis, providing a modular and object-oriented pipeline for nanoparticle research and metrology.
 
 ---
@@ -22,7 +22,7 @@ It supports both **single-image** and **batch image** analysis, providing a modu
 ## NanoPSD Pipeline
 The processing workflow follows these main steps:
 
-1. **Input Acquisition** – SEM/TEM image(s) provided as single or batch mode.
+1. **Input Acquisition** – TEM/STEM image(s) provided as single or batch mode.
 2. **Preprocessing** – Contrast enhancement (CLAHE, filters) to improve particle visibility.
 3. **Segmentation** – Classical thresholding (Otsu) to identify particle regions.
 4. **Scale Bar & Text Exclusion** – Automatic masking of scale bar and annotation text.
@@ -59,7 +59,7 @@ pip install pytesseract
 **Option 2: EasyOCR (Requires GPU for good performance)**
 ```bash
 pip install easyocr torch torchvision
-# Note: Very slow on CPU (hours vs seconds). Only use with CUDA GPU.
+# Note: Very slow on CPU (hours vs. seconds). Only use with CUDA GPU.
 ```
 
 **Option 3: Skip OCR entirely (Recommended)**
@@ -111,6 +111,13 @@ NanoPSD/
 │   ├── ocr.py                 # OCR for scale bar text (EasyOCR/Tesseract)
 │   └── scale_bar.py           # Scale bar detection (hybrid)
 │
+├── docs/                      # Documentation & assets
+│   └── figures/               # Documentation images (README assets)
+│       ├── scale_candidates.png
+│       ├── sample_image_1_true_contours.jpg
+│       ├── sample_image_1_morphology_overlay.jpg
+│       └── sample_image_1_diameter_histogram.png
+│
 ├── notebooks/
 │   └── PSD_Interactive_Analysis.ipynb # Jupyter notebook demo
 │
@@ -128,6 +135,36 @@ NanoPSD/
     │   ├── batch_summary.csv            # Per-image statistics
     │   └── sample_image_*_summary.tex
     └── report.tex             # Example LaTeX report
+```
+
+---
+
+## Project Architecture
+```bash
+NanoPSD/
+├── nanopsd.py              # Main entry point (start here!)
+├── analyzer.py             # Core pipeline orchestrator
+├── cli.py                  # Command-line argument parser
+│
+├── Preprocessing:
+│   └── clahe_filter.py     # Contrast enhancement + thresholding
+│
+├── Scale Bar Detection:
+│   ├── scale_bar.py        # Geometric detection
+│   └── ocr.py              # Text recognition (Tesseract/EasyOCR)
+│
+├── Segmentation:
+│   ├── base.py             # Abstract interface
+│   ├── otsu_impl.py        # Otsu implementation
+│   └── otsu_segment.py     # Classical segmentation
+│
+├── Measurement & Analysis:
+│   ├── size_measurement.py # Particle measurement + morphology
+│   └── plotting.py         # Histograms + visualizations
+│
+└── Configuration:
+    ├── requirements.txt
+    └── imglab_environment.yml
 ```
 
 ---
@@ -415,7 +452,39 @@ Morphology analysis generates additional outputs:
 4. `nanoparticle_data.csv` - Includes morphology classification and shape metrics
 
 ### Example Console Output
-(To be added)
+**Input Command:**
+
+`python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm 200`
+
+**Console Output:**
+```bash
+2026-01-03 22:59:23,582 [INFO] Processing: sample_image_1.tif
+2026-01-03 22:59:23,582 [INFO] 📏 Scale bar detection mode
+Excluded text region: (820, 2017, 145, 21)
+2026-01-03 22:59:24,102 [INFO] Calibration: 0.6289 nm/pixel (bar: 318 px, value: 200.0 nm)
+2026-01-03 22:59:24,154 [INFO] Excluding scale bar region from particle detection...
+2026-01-03 22:59:24,157 [INFO] Using geometric text exclusion around scale bar
+2026-01-03 22:59:24,157 [INFO] Excluded area: (564,2017) to (1282,2115)
+2026-01-03 22:59:24,695 [INFO] Segmented 824 regions after exclusion.
+Saved all contour types:
+ - outputs/figures/sample_image_1_true_contours.tif
+ - outputs/figures/sample_image_1_circular_equivalent.tif
+ - outputs/figures/sample_image_1_elliptical_equivalent.tif
+ - outputs/figures/sample_image_1_all_contour_types.tif
+Morphology distribution: {'aggregate': 327, 'spherical': 37, 'rod-like': 13}
+ - outputs/figures/sample_image_1_morphology_overlay.tif
+2026-01-03 22:59:33,443 [INFO] Measured 377 particles (post-filter).
+Saved: outputs/figures/sample_image_1_diameter_histogram.png
+
+============================================================
+MORPHOLOGY SUMMARY
+============================================================
+Spherical   :   37 (  9.8%)  Avg:   7.88 nm
+Rod-like    :   13 (  3.4%)  Avg:   9.63 nm
+Aggregate   :  327 ( 86.7%)  Avg:  13.61 nm
+============================================================
+2026-01-03 22:59:34,805 [INFO] Completed: sample_image_1.tif | Count=377
+```
 
 ## Batch Mode Outputs
 
@@ -546,16 +615,20 @@ python3 nanopsd.py --mode single --input image.tif --algo classical --min-size 3
 
 ## Example Results
 
-*(Need add sample figures here)*
+- **Raw STEM Image**
+  ![STEM Raw](sample_image_1.jpg)
 
-- **Raw SEM Image**
-  ![SEM Raw](sample_image_1.tif)
+- **Scalebar Detection**
+  ![Scalebar Detection](/docs/figures/scale_candidates.png)
 
-- **Segmented Overlay**
-  *(example segmented image output)*
+- **Contour Overlay**
+  ![Contour Overlay](/docs/figures/sample_image_1_true_contours.jpg)
 
-- **Particle Size Histogram**
-  *(example histogram plot)*
+- **Morphology Overlay**
+  ![Morphology Overlay](/docs/figures/sample_image_1_morphology_overlay.jpg)
+
+**Particle Size (Diameter) Histogram**
+  ![Particle Size (Diameter) Histogram](/docs/figures/sample_image_1_diameter_histogram.png)
 
 ---
 

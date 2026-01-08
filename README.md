@@ -612,7 +612,7 @@ python3 nanopsd.py --mode single --input image.tif --algo classical --min-size 3
   ![STEM Raw](sample_image_1.jpg)
 
 - **Scalebar Detection**
-  ![Scalebar Detection](/docs/figures/scale_candidates.jpg)
+  ![Scalebar Detection](/docs/figures/scale_candidates.png)
 
 - **Contour Overlay**
   ![Contour Overlay](/docs/figures/sample_image_1_true_contours.jpg)
@@ -621,7 +621,7 @@ python3 nanopsd.py --mode single --input image.tif --algo classical --min-size 3
   ![Morphology Overlay](/docs/figures/sample_image_1_morphology_overlay.jpg)
 
 **Particle Size (Diameter) Histogram**
-  ![Particle Size (Diameter) Histogram](/docs/figures/sample_image_1_diameter_histogram.jpg)
+  ![Particle Size (Diameter) Histogram](/docs/figures/sample_image_1_diameter_histogram.png)
 
 ---
 

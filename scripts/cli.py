@@ -38,13 +38,13 @@ def build_parser() -> argparse.ArgumentParser:
     python3 main.py --mode single --input image.tif --scale-bar-nm 200 --algo classical --min-size 3
 
     # Single image with OCR auto-detection
-    python3 main.py --mode single --input image.tif --scale-bar-nm -1 --algo classical --min-size 3
+    python3 main.py --mode single --input image.tif --algo classical --min-size 3 --ocr-backend auto
 
     # Single image with EasyOCR specifically
-    python3 main.py --mode single --input image.tif --scale-bar-nm -1 --algo classical --min-size 3 --ocr-backend easyocr
+    python3 main.py --mode single --input image.tif --algo classical --min-size 3 --ocr-backend easyocr
 
     # Batch processing with OCR
-    python3 main.py --mode batch --input ./images/ --scale-bar-nm -1 --algo classical --min-size 5 --ocr-backend auto
+    python3 main.py --mode batch --input ./images/ --algo classical --min-size 5 --ocr-backend auto
     """
 
     # Create parser with program description
@@ -59,8 +59,8 @@ def build_parser() -> argparse.ArgumentParser:
         epilog=(
             "Examples:\n"
             "  Single image (manual scale):     python3 main.py --mode single --input image.tif --scale-bar-nm 200\n"
-            "  Single image (OCR auto-detect):  python3 main.py --mode single --input image.tif --scale-bar-nm -1\n"
-            "  Batch processing:                python3 main.py --mode batch --input ./folder/ --scale-bar-nm -1\n"
+            "  Single image (OCR auto-detect):  python3 main.py --mode single --input image.tif --ocr-backend auto\n"
+            "  Batch processing:                python3 main.py --mode batch --input ./folder/ --ocr-backend auto\n"
             "\n"
             "For more information, visit: https://github.com/Huq2090/NanoPSD"
         ),
@@ -96,14 +96,15 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         metavar="VALUE",
         help=(
-            "Scale bar length in nanometers:\n"
-            "  Positive value (e.g., 200): Use this as the known scale\n"
-            "  -1: Attempt automatic OCR detection of scale bar text\n"
+            "Scale bar length in nanometers (manual mode):\n"
+            "  Provide the known scale bar value from the image.\n"
             "\n"
             "Examples:\n"
             "  --scale-bar-nm 200    # Scale bar is 200 nm\n"
-            "  --scale-bar-nm 0.5    # Scale bar is 0.5 nm (rare, but supported)\n"
-            "  --scale-bar-nm -1     # Auto-detect using OCR"
+            "  --scale-bar-nm 0.5    # Scale bar is 0.5 nm\n"
+            "\n"
+            "Note: For automatic detection, use --ocr-backend instead.\n"
+            "      Cannot be used together with --ocr-backend or --nm-per-pixel."
         ),
     )
 
@@ -182,32 +183,38 @@ def build_parser() -> argparse.ArgumentParser:
 
     p.add_argument(
         "--ocr-backend",
-        default="auto",
-        choices=["auto", "easyocr", "tesseract"],
+        default=None,
+        choices=["auto", "tesseract", "easyocr"],
         metavar="BACKEND",
         help=(
-            "OCR engine for scale bar text recognition (default: auto)\n"
+            "Enable automatic scale bar detection using OCR:\n"
             "\n"
             "Backend Options:\n"
-            "  'auto':      Try EasyOCR first, fall back to Tesseract if needed\n"
-            "               (Recommended for most users - maximizes success rate)\n"
+            "  'auto':      Try EasyOCR first, fallback to Tesseract (recommended)\n"
+            "               Maximizes detection success rate\n"
             "\n"
-            "  'easyocr':   Use only EasyOCR (deep learning-based)\n"
+            "  'tesseract': Traditional OCR (CPU-friendly)\n"
+            "               + Faster (~0.1 seconds per image)\n"
+            "               + Good for high-contrast, horizontal text\n"
+            "               - Less accurate for rotated/skewed text\n"
+            "               Requires: sudo apt-get install tesseract-ocr\n"
+            "                        pip install pytesseract\n"
+            "\n"
+            "  'easyocr':   Deep learning OCR (GPU recommended)\n"
             "               + Most accurate for microscopy images\n"
             "               + Handles rotated/skewed text automatically\n"
             "               + Works with complex backgrounds\n"
             "               - Slower (1-2 seconds per image)\n"
-            "               - Requires: pip install easyocr\n"
+            "               - WARNING: Very slow on CPU (hours vs seconds)\n"
+            "               Requires: pip install easyocr torch torchvision\n"
             "\n"
-            "  'tesseract': Use only Tesseract (traditional OCR)\n"
-            "               + Faster (~0.1 seconds per image)\n"
-            "               + Good for high-contrast, horizontal text\n"
-            "               - Less accurate for complex images\n"
-            "               - Requires: apt-get install tesseract-ocr\n"
-            "                          pip install pytesseract\n"
+            "Examples:\n"
+            "  --ocr-backend auto        # Auto-detect with EasyOCR first\n"
+            "  --ocr-backend tesseract    # Auto-detect with Tesseract\n"
+            "  --ocr-backend easyocr      # Auto-detect with EasyOCR\n"
             "\n"
-            "Note: This flag only matters when --scale-bar-nm -1 (OCR mode).\n"
-            "      When providing manual scale (e.g., --scale-bar-nm 200), OCR is not used."
+            "Note: Cannot be used together with --scale-bar-nm or --nm-per-pixel.\n"
+            "      Choose ONE calibration method only."
         ),
     )
 
@@ -223,22 +230,45 @@ def parse_args():
     parser = build_parser()
     args = parser.parse_args()
 
-    # Check if user provided scale_bar_nm
+    # Check which calibration methods are provided
     has_scale_bar = args.scale_bar_nm is not None
-
-    # Check if user provided nm_per_pixel
+    has_ocr = args.ocr_backend is not None
     has_nm_per_px = args.nm_per_pixel is not None
 
-    # Error if NEITHER provided
-    if not has_scale_bar and not has_nm_per_px:
+    # Count how many methods provided
+    methods_count = sum([has_scale_bar, has_ocr, has_nm_per_px])
+
+    # Must provide exactly ONE method
+    if methods_count == 0:
         parser.error(
-            "Must provide calibration method:\n"
-            "  Either: --scale-bar-nm VALUE\n"
-            "  Or:     --nm-per-pixel VALUE"
+            "Must provide ONE calibration method:\n"
+            "  Option 1: --scale-bar-nm VALUE     (manual scale value)\n"
+            "  Option 2: --ocr-backend BACKEND    (automatic OCR detection)\n"
+            "  Option 3: --nm-per-pixel VALUE     (no scale bar, direct calibration)\n"
+            "\n"
+            "Examples:\n"
+            "  python3 nanopsd.py --input image.tif --scale-bar-nm 200 --min-size 3\n"
+            "  python3 nanopsd.py --input image.tif --ocr-backend tesseract --min-size 3\n"
+            "  python3 nanopsd.py --input image.tif --nm-per-pixel 2.5 --min-size 3"
         )
 
-    # Error if BOTH provided
-    if has_scale_bar and has_nm_per_px:
-        parser.error("Cannot use both --scale-bar-nm and --nm-per-pixel together")
+    if methods_count > 1:
+        methods_used = []
+        if has_scale_bar:
+            methods_used.append("--scale-bar-nm")
+        if has_ocr:
+            methods_used.append("--ocr-backend")
+        if has_nm_per_px:
+            methods_used.append("--nm-per-pixel")
+
+        parser.error(
+            f"Cannot use multiple calibration methods together.\n"
+            f"You provided: {', '.join(methods_used)}\n"
+            f"\n"
+            f"Choose ONE of:\n"
+            f"  --scale-bar-nm (manual scale value)\n"
+            f"  --ocr-backend (automatic OCR)\n"
+            f"  --nm-per-pixel (no scale bar)"
+        )
 
     return args

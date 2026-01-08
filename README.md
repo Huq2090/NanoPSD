@@ -1,7 +1,7 @@
 # NanoPSD
 **Software Package for Analyzing Plasma-Synthesized Nanoparticle Shape Distribution**
 
-NanoPSD is a production-ready Python package designed to extract **particle size and morphology distributions (PSD)** of **Nanoparticles (NPs)** from **SEM/TEM images**.
+NanoPSD is a production-ready Python package designed to extract **particle shape distributions (PSD)** of **Nanoparticles (NPs)** from **TEM/STEM images**.
 It supports both **single-image** and **batch image** analysis, providing a modular and object-oriented pipeline for nanoparticle research and metrology.
 
 ---
@@ -22,7 +22,7 @@ It supports both **single-image** and **batch image** analysis, providing a modu
 ## NanoPSD Pipeline
 The processing workflow follows these main steps:
 
-1. **Input Acquisition** – SEM/TEM image(s) provided as single or batch mode.
+1. **Input Acquisition** – TEM/STEM image(s) provided as single or batch mode.
 2. **Preprocessing** – Contrast enhancement (CLAHE, filters) to improve particle visibility.
 3. **Segmentation** – Classical thresholding (Otsu) to identify particle regions.
 4. **Scale Bar & Text Exclusion** – Automatic masking of scale bar and annotation text.
@@ -59,7 +59,7 @@ pip install pytesseract
 **Option 2: EasyOCR (Requires GPU for good performance)**
 ```bash
 pip install easyocr torch torchvision
-# Note: Very slow on CPU (hours vs seconds). Only use with CUDA GPU.
+# Note: Very slow on CPU (hours vs. seconds). Only use with CUDA GPU.
 ```
 
 **Option 3: Skip OCR entirely (Recommended)**
@@ -126,7 +126,7 @@ NanoPSD/
     │   ├── nanoparticle_data.csv
     │   ├── batch_all_particles.csv      # Combined batch data
     │   ├── batch_summary.csv            # Per-image statistics
-    │   └── sample_image_\*_summary.tex
+    │   └── sample_image_*_summary.tex
     └── report.tex             # Example LaTeX report
 ```
 
@@ -151,7 +151,7 @@ NanoPSD/
 │   ├── otsu_impl.py        # Otsu implementation
 │   └── otsu_segment.py     # Classical segmentation
 │
-├── Measurement \& Analysis:
+├── Measurement & Analysis:
 │   ├── size_measurement.py # Particle measurement + morphology
 │   └── plotting.py         # Histograms + visualizations
 │
@@ -608,16 +608,20 @@ python3 nanopsd.py --mode single --input image.tif --algo classical --min-size 3
 
 ## Example Results
 
-*(Need add sample figures here)*
+- **Raw STEM Image**
+  ![STEM Raw](sample_image_1.jpg)
 
-- **Raw SEM Image**
-  ![SEM Raw](sample_image_1.tif)
+- **Scalebar Detection**
+  ![Scalebar Detection](/docs/figures/scale_candidates.jpg)
 
-- **Segmented Overlay**
-  *(example segmented image output)*
+- **Contour Overlay**
+  ![Contour Overlay](/docs/figures/sample_image_1_true_contours.jpg)
 
-- **Particle Size Histogram**
-  *(example histogram plot)*
+- **Morphology Overlay**
+  ![Morphology Overlay](/docs/figures/sample_image_1_morphology_overlay.jpg)
+
+**Particle Size (Diameter) Histogram**
+  ![Particle Size (Diameter) Histogram](/docs/figures/sample_image_1_diameter_histogram.jpg)
 
 ---
 

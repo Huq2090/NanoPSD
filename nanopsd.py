@@ -231,6 +231,7 @@ def main() -> None:
         # Segmentation parameters
         mode=args.algo,  # "classical" (only one implemented now)
         min_size_px=args.min_size,  # Minimum particle size filter (pixels)
+        max_size_px=args.max_size,  # Maximum particle size filter (pixels)
         # OCR configuration
         ocr_backend=args.ocr_backend,  # "auto", "easyocr", or "tesseract"
         verify_scale_bar=args.verify_scale_bar,  # Enable manual verification of scale detection

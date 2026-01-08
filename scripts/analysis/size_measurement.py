@@ -15,8 +15,8 @@ def measure_particles(
     original_image,
     nm_per_pixel,
     image_path,
-    min_diam_nm=5,
-    max_diam_nm=1000,
+    min_size_px=5,
+    max_size_px=None,
 ):
     """
     Measures the diameters of segmented nanoparticles and overlays contours on the original image.
@@ -58,15 +58,20 @@ def measure_particles(
     diameters_nm = []
     centroids = []
 
-    # Convert the minimum valid diameter to area in pixels using the circle area formula
-    # A = π * (d/2)^2, where d is the minimum diameter in pixels
-    min_area_px = np.pi * ((min_diam_nm / nm_per_pixel) / 2) ** 2
-    max_area_px = np.pi * ((max_diam_nm / nm_per_pixel) / 2) ** 2
+    # Convert pixel-based size thresholds to area (scale-independent)
+    # A = π * (d/2)^2, where d is the diameter in pixels
+    min_area_px = np.pi * (min_size_px / 2) ** 2
+
+    # Max size is optional - if not specified, use infinity
+    if max_size_px is not None:
+        max_area_px = np.pi * (max_size_px / 2) ** 2
+    else:
+        max_area_px = float("inf")  # No upper limit
 
     # Iterate over each detected region (particle)
     for region in regions:
-        # Only consider regions with area >= minimum threshold
-        if max_area_px >= region.area >= min_area_px:
+        # Filter by area (safety net - already filtered in segmentation)
+        if min_area_px <= region.area <= max_area_px:
             # Equivalent diameter of a region (diameter of a circle with same area)
             d_px = region.equivalent_diameter
 

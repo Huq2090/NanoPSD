@@ -112,6 +112,7 @@ class NanoparticleAnalyzer:
         batch: bool = False,
         extensions: Tuple[str, ...] = (".png", ".tif", ".tiff", ".jpg", ".jpeg"),
         min_size_px: int = 3,
+        max_size_px: int = None,
         mode: str = "classical",
         ocr_backend: str = "auto",
         verify_scale_bar: bool = False,
@@ -185,6 +186,7 @@ class NanoparticleAnalyzer:
         self.batch_mode = bool(batch)
         self.extensions = tuple(extensions)
         self.min_size_px = int(min_size_px)
+        self.max_size_px = int(max_size_px) if max_size_px is not None else None
         self.mode = mode
         self.ocr_backend = ocr_backend  # Store OCR backend choice
         self.verify_scale_bar = verify_scale_bar  # Store scale bar verification flag
@@ -216,7 +218,9 @@ class NanoparticleAnalyzer:
         # Instantiate the segmentation strategy
         # Using Strategy pattern: segmenter implements BaseSegmenter interface
         # This makes it easy to swap in AI segmentation later without changing this code
-        self.segmenter = OtsuSegmenter(min_size=self.min_size_px)
+        self.segmenter = OtsuSegmenter(
+            min_size=self.min_size_px, max_size=self.max_size_px
+        )
 
     # =========================================================================
     # Public API
@@ -521,7 +525,13 @@ class NanoparticleAnalyzer:
             # - overlay_image: annotated image with contours
             # - df: pandas DataFrame with measurements (unused here)
             diameters_nm, overlay_image, df = measure_particles(
-                regions, labeled, original, nm_per_pixel, img_path
+                regions,
+                labeled,
+                original,
+                nm_per_pixel,
+                img_path,
+                min_size_px=self.min_size_px,
+                max_size_px=self.max_size_px,
             )
             logging.info(f"Measured {len(diameters_nm)} particles (post-filter).")
 

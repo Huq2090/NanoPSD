@@ -10,8 +10,8 @@ It supports both **single-image** and **batch image** analysis, providing a modu
 - Automated **scale bar & text exclusion** from images
 - **Manual calibration mode** for images without scale bars (direct nm/pixel input)
 - **Particle segmentation** using classical methods (Otsu thresholding, preprocessing filters)
-- **Particle segmentation** using classical methods (Otsu thresholding, preprocessing filters)
 - **Size extraction & visualization** (histograms, plots, CSV export)
+- **Flexible particle filtering** with `--min-size` and `--max-size` (removes noise and false detections)  ← ADD THIS
 - **Classification of nanoparticles** based on **morphology**
 - Works with both **single images** and **batch folders**
 - Modular, **object-oriented codebase** for easy extension
@@ -220,6 +220,52 @@ pip install easyocr torch torchvision
 
 ---
 
+---
+
+## Particle Size Filtering
+
+NanoPSD provides two filtering parameters to control which particles are analyzed:
+
+### `--min-size` (Minimum Particle Size)
+- **Default:** 3 pixels
+- **Purpose:** Remove small noise objects
+- **When to adjust:**
+  - Increase (5-10) for noisy images
+  - Decrease (1-2) to detect very small particles
+
+**Example:**
+```bash
+python3 nanopsd.py --mode single --input image.tif --scale-bar-nm 200 --min-size 5
+```
+
+### `--max-size` (Maximum Particle Size)
+- **Default:** None (no upper limit)
+- **Purpose:** Remove large false detections (scale bars, artifacts, large aggregates)
+- **When to use:**
+  - Images with large artifacts
+  - To exclude particles above a certain size
+  - To remove incorrectly detected regions
+
+**Example:**
+```bash
+python3 nanopsd.py --mode single --input image.tif --scale-bar-nm 200 --max-size 100
+```
+
+### Combined Filtering
+**Example:**
+```bash
+# Only analyze particles between 5 and 100 pixels in diameter
+python3 nanopsd.py --mode single --input image.tif --scale-bar-nm 200 --min-size 5 --max-size 100
+```
+
+### Scale Independence
+Both parameters are **in pixels**, making them **scale-independent**:
+- Works for nanometer, micrometer, or millimeter scale images
+- Same pixel threshold works regardless of calibration
+- No need to convert between units
+
+---
+
 ## Usage
 
 ### Determining the Scale Bar Size Parameter
@@ -234,7 +280,11 @@ pip install easyocr torch torchvision
 
 **Example:**
 ```bash
+# Basic usage
 python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm 200
+
+# With maximum size filter (remove large false detections)
+python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --max-size 100 --scale-bar-nm 200
 ```
 
 #### Method 2: Automatic Detection (Requires OCR)
@@ -247,6 +297,9 @@ python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --m
 
 # GPU-accelerated (EasyOCR - requires CUDA)
 python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend easyocr
+
+# With maximum size filter
+python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 5 --max-size 150 --scale-bar-nm -1 --ocr-backend tesseract
 
 # With verification prompt
 python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm -1 --ocr-backend tesseract --verify-scale-bar
@@ -591,6 +644,11 @@ pip install pytesseract
 2. **Overlapping particles**: May require manual separation or AI segmentation
 3. **Non-uniform background**: Try adjusting CLAHE parameters
 4. **Wrong minimum size**: Adjust `--min-size` parameter
+5. **Large false detections**: Use `--max-size` to filter out artifacts
+```bash
+   # Example: Exclude particles larger than 200 pixels
+   python3 nanopsd.py --mode single --input image.tif --scale-bar-nm 200 --min-size 3 --max-size 200
+```
 
 ---
 
@@ -691,4 +749,4 @@ For questions, bug reports, or feature requests, please open an issue on GitHub.
 
 ---
 
-**Last Updated**: October 2025
+**Last Updated**: January 2026

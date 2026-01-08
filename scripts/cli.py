@@ -166,6 +166,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     p.add_argument(
+        "--max-size",
+        type=int,
+        default=None,
+        metavar="PIXELS",
+        help=(
+            "Maximum particle size in pixels (default: None = no limit)\n"
+            "\n"
+            "Particles larger than this are filtered out.\n"
+            "Useful for removing large false detections or artifacts.\n"
+            "\n"
+            "Example: --max-size 100\n"
+        ),
+    )
+
+    p.add_argument(
         "--ocr-backend",
         default="auto",
         choices=["auto", "easyocr", "tesseract"],

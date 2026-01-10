@@ -680,28 +680,28 @@ class NanoparticleAnalyzer:
         x, y, w, h = bar_bbox
 
         # Crop 150px around bar
-        y1 = max(0, y - 150)
-        y2 = min(img.shape[0], y + h + 150)
-        x1 = max(0, x - 150)
-        x2 = min(img.shape[1], x + w + 150)
+        y1 = max(0, y - 200)
+        y2 = min(img.shape[0], y + h + 200)
+        x1 = max(0, x - 200)
+        x2 = min(img.shape[1], x + w + 200)
 
         crop = img[y1:y2, x1:x2].copy()
 
         # Draw green box
-        cv2.rectangle(crop, (x - x1, y - y1), (x - x1 + w, y - y1 + h), (0, 255, 0), 3)
+        cv2.rectangle(crop, (x - x1, y - y1), (x - x1 + w, y - y1 + h), (0, 0, 200), 3)
 
         # Add text
         text = f"{scale_bar_px}px"
         if ocr_value:
             text += f" = {ocr_value}nm"
-        cv2.putText(crop, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        cv2.putText(crop, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 200), 2)
         cv2.putText(
             crop,
             "Y=Accept N=Reject",
-            (10, crop.shape[0] - 20),
+            (10, 70),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.8,
-            (0, 255, 255),
+            (255, 0, 0),
             2,
         )
 

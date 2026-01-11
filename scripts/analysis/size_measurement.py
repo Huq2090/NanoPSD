@@ -200,7 +200,7 @@ def measure_particles(
     morphology_overlay = img_for_overlay.copy()
 
     color_map = {
-        "spherical": (0, 255, 0),  # Green
+        "spherical": (0, 100, 0),  # Dark Green
         "rod-like": (255, 0, 0),  # Blue (BGR)
         "aggregate": (0, 0, 255),  # Red
     }
@@ -227,48 +227,50 @@ def measure_particles(
             )
             cv2.drawContours(morphology_overlay, contours, -1, color, CONTOUR_THICKNESS)
 
-            cy, cx = region.centroid
-            label = morph[0].upper()
-            cv2.putText(
-                morphology_overlay,
-                label,
-                (int(cx) - 5, int(cy) + 5),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5,
-                color,
-                1,
-            )
+            # Optionally, add text labels at centroids for each particle. S = spherical, R = rod-like, A = aggregate
+            # Commented out for clarity.
+            # cy, cx = region.centroid
+            # label = morph[0].upper()
+            # cv2.putText(
+            #     morphology_overlay,
+            #     label,
+            #     (int(cx) - 5, int(cy) + 5),
+            #     cv2.FONT_HERSHEY_SIMPLEX,
+            #     0.5,
+            #     color,
+            #     1,
+            # )
 
             region_idx += 1
 
     # Add legend
-    legend_y = 30
+    legend_y = 60
     cv2.putText(
         morphology_overlay,
         "Green = Spherical",
-        (10, legend_y),
+        (15, legend_y),
         cv2.FONT_HERSHEY_SIMPLEX,
-        0.7,
-        (0, 255, 0),
-        2,
+        2.0,
+        (0, 100, 0),
+        5,
     )
     cv2.putText(
         morphology_overlay,
         "Blue = Rod-like",
-        (10, legend_y + 30),
+        (15, legend_y + 60),
         cv2.FONT_HERSHEY_SIMPLEX,
-        0.7,
+        2.0,
         (255, 0, 0),
-        2,
+        5,
     )
     cv2.putText(
         morphology_overlay,
         "Red = Aggregate",
-        (10, legend_y + 60),
+        (15, legend_y + 120),
         cv2.FONT_HERSHEY_SIMPLEX,
-        0.7,
+        2.0,
         (0, 0, 255),
-        2,
+        5,
     )
 
     # Save morphology overlay

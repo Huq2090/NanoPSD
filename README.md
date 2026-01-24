@@ -128,8 +128,7 @@ NanoPSD/
     │   │
     │   ├── # Single Image Outputs:
     │   ├── {image}_diameter_histogram.png
-    │   ├── {image}_morphology_histograms.png
-    │   ├── {image}_morphology_pie.png
+    │   ├── {image}_boxplot.png.png
     │   ├── {image}_morphology_overlay.{ext}
     │   ├── {image}_true_contours.{ext}
     │   ├── {image}_circular_equivalent.{ext}
@@ -483,6 +482,7 @@ python3 nanopsd.py --mode batch --input ./batch_images --algo classical --min-si
 
 **Per-Image Outputs** (same as single mode):
 - Individual histograms (`{image}_histogram.png`)
+- Individual box plots (`{image}_boxplot.png`)
 - Individual contour overlays (`{image}_contours.png`)
 - Individual morphology overlays (`{image}_morphology_overlay.png`)
 - Individual morphology charts (`{image}_morphology_*.png`)
@@ -629,8 +629,7 @@ sample_image.tif,147,42.35,12.78,39.21,18.45,89.32,89,32,26
 **3. Visualizations** (in `outputs/figures/`):
 - `{image}_diameter_histogram.png` - Overall size distribution histogram
 - `{image}_morphology_overlay.{ext}` - Color-coded particle contours (Green=Spherical, Blue=Rod-like, Red=Aggregate)
-- `{image}_morphology_histograms.png` - 4-panel size distributions by particle type
-- `{image}_morphology_pie.png` - Pie chart showing morphology distribution
+- `{image}_boxplot.png` - Box plot showing median, quartiles, and outliers
 - `{image}_true_contours.{ext}` - True detected contours overlay
 - `{image}_circular_equivalent.{ext}` - Circular equivalent diameter overlay
 - `{image}_elliptical_equivalent.{ext}` - Elliptical fit overlay

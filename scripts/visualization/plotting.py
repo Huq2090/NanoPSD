@@ -25,10 +25,98 @@ def plot_results(diameters_nm, image_path, df=None):
     plt.close()
     print(f"Saved: {out_path}")
 
-    # === NEW: Morphology-specific plots ===
-    if df is not None and "Morphology" in df.columns:
-        # Figure 2: 4-panel morphology histograms
-        fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    # === Box Plot for Size Distribution (SINGLE IMAGE) ===
+    fig, ax = plt.subplots(1, 1, figsize=(8, 6))
+
+    # Create box plot for particle diameters
+    box_parts = ax.boxplot(
+        [diameters_nm],  # Single dataset in a list
+        labels=["Particle Diameters"],
+        patch_artist=True,  # Enable filling
+        notch=False,
+        showmeans=True,  # Show mean as a marker
+        meanline=False,
+    )
+
+    # Customize appearance
+    box_parts["boxes"][0].set_facecolor("lightblue")
+    box_parts["boxes"][0].set_alpha(0.7)
+
+    for whisker in box_parts["whiskers"]:
+        whisker.set(linewidth=1.5, linestyle="--", color="gray")
+    for cap in box_parts["caps"]:
+        cap.set(linewidth=1.5, color="gray")
+    for median in box_parts["medians"]:
+        median.set(linewidth=2, color="red")
+    for mean in box_parts["means"]:
+        mean.set(
+            marker="D", markerfacecolor="blue", markeredgecolor="blue", markersize=8
+        )
+
+    # Labels and formatting
+    ax.set_ylabel("Diameter (nm)", fontsize=14, fontweight="bold")
+    ax.set_title(
+        f"Particle Size Distribution - {base}", fontsize=16, fontweight="bold", pad=20
+    )
+    ax.grid(axis="y", alpha=0.3, linestyle="--")
+
+    # Add legend
+    from matplotlib.patches import Patch
+    from matplotlib.lines import Line2D
+
+    legend_elements = [
+        Line2D([0], [0], color="red", linewidth=2, label="Median"),
+        Line2D(
+            [0],
+            [0],
+            marker="D",
+            color="w",
+            markerfacecolor="blue",
+            markeredgecolor="blue",
+            markersize=8,
+            label="Mean",
+        ),
+        Patch(facecolor="lightblue", alpha=0.7, label="25th-75th percentile (IQR)"),
+        Line2D(
+            [0],
+            [0],
+            color="gray",
+            linewidth=1.5,
+            linestyle="--",
+            label="Whiskers (1.5×IQR)",
+        ),
+    ]
+    ax.legend(handles=legend_elements, loc="upper right", fontsize=10, framealpha=0.9)
+
+    # Add statistical annotations on the plot
+    median_val = np.median(diameters_nm)
+    q1 = np.percentile(diameters_nm, 25)
+    q3 = np.percentile(diameters_nm, 75)
+    mean_val = np.mean(diameters_nm)
+
+    # Text box with statistics
+    stats_text = f"n = {len(diameters_nm)}\n"
+    stats_text += f"Median = {median_val:.2f} nm\n"
+    stats_text += f"Mean = {mean_val:.2f} nm\n"
+    stats_text += f"Q1 = {q1:.2f} nm\n"
+    stats_text += f"Q3 = {q3:.2f} nm\n"
+    stats_text += f"IQR = {q3-q1:.2f} nm"
+
+    ax.text(
+        0.02,
+        0.98,
+        stats_text,
+        transform=ax.transAxes,
+        fontsize=10,
+        verticalalignment="top",
+        bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.5),
+    )
+
+    plt.tight_layout()
+    out_path = f"outputs/figures/{base}_boxplot.png"
+    plt.savefig(out_path, dpi=300, bbox_inches="tight")
+    plt.close()
+    print(f"Saved: {out_path}")
 
 
 def _generate_batch_report(self) -> None:

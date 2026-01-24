@@ -39,7 +39,11 @@ from utils.scale_bar import (
 )
 from scripts.preprocessing.clahe_filter import preprocess_image
 from scripts.segmentation.otsu_impl import OtsuSegmenter
-from scripts.analysis.size_measurement import measure_particles, export_to_latex
+from scripts.analysis.size_measurement import (
+    measure_particles,
+    export_to_latex,
+    export_summary_csv,
+)
 from scripts.visualization.plotting import plot_results
 
 # Configure logging format
@@ -592,7 +596,11 @@ class NanoparticleAnalyzer:
             # export_to_latex: generates statistical summary table
             export_to_latex(diameters_nm, img_path)
 
-            # === NEW: Print morphology summary ===
+            # Export summary CSV (SINGLE MODE ONLY)
+            if not self.batch_mode:
+                export_summary_csv(diameters_nm, df, img_path)
+
+            # Print morphology summary
             if len(df) > 0 and "Morphology" in df.columns:
                 print("\n" + "=" * 60)
                 print("MORPHOLOGY SUMMARY")
@@ -660,6 +668,7 @@ class NanoparticleAnalyzer:
                     "Total_Particles": len(img_df),
                     "Mean_Diameter_nm": img_df["Diameter (nm)"].mean(),
                     "Std_Diameter_nm": img_df["Diameter (nm)"].std(),
+                    "Median_Diameter_nm": img_df["Diameter (nm)"].median(),
                     "Min_Diameter_nm": img_df["Diameter (nm)"].min(),
                     "Max_Diameter_nm": img_df["Diameter (nm)"].max(),
                     "Spherical_Count": len(img_df[img_df["Morphology"] == "spherical"]),

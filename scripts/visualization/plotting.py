@@ -194,91 +194,261 @@ def plot_batch_comparison(df_all, df_summary):
     images = df_all["Image"].unique()
     n_images = len(images)
 
-    # Figure 1: Overlaid histograms
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+    # Figure 1: Box plot comparison
+    fig, ax = plt.subplots(1, 1, figsize=(12, 6))  # Single subplot
 
-    # All particles overlaid
-    colors = plt.cm.tab10(np.linspace(0, 1, n_images))
-    for i, img in enumerate(images):
-        data = df_all[df_all["Image"] == img]["Diameter (nm)"]
-        ax1.hist(
-            data, bins=20, alpha=0.5, label=img, color=colors[i], edgecolor="black"
-        )
-    ax1.set_xlabel("Diameter (nm)", fontsize=12)
-    ax1.set_ylabel("Count", fontsize=12)
-    ax1.set_title("Size Distribution Comparison (All Images)", fontsize=14)
-    ax1.legend(fontsize=8)
-    ax1.grid(axis="y", alpha=0.3)
-
-    # Box plot comparison
+    # Prepare data for box plot
     data_by_image = [
         df_all[df_all["Image"] == img]["Diameter (nm)"].values for img in images
     ]
-    ax2.boxplot(
-        data_by_image, labels=[img[:15] for img in images]
-    )  # Truncate long names
-    ax2.set_xlabel("Image", fontsize=12)
-    ax2.set_ylabel("Diameter (nm)", fontsize=12)
-    ax2.set_title("Size Distribution Box Plots", fontsize=14)
-    ax2.grid(axis="y", alpha=0.3)
-    plt.xticks(rotation=45, ha="right")
+
+    # Create box plot
+    box_parts = ax.boxplot(
+        data_by_image,
+        labels=[img[:20] for img in images],  # Truncate long names to 20 chars
+        patch_artist=True,  # Enable filling boxes with color
+        notch=False,  # Set to True for notched boxes (shows confidence interval of median)
+        showmeans=True,  # Show mean as a separate marker
+        meanline=False,  # Show mean as a point (not a line)
+    )
+
+    # Customize box plot appearance
+    colors = plt.cm.Set3(
+        np.linspace(0, 1, n_images)
+    )  # Use Set3 colormap for distinct colors
+    for patch, color in zip(box_parts["boxes"], colors):
+        patch.set_facecolor(color)
+        patch.set_alpha(0.7)
+
+    # Customize other elements
+    for whisker in box_parts["whiskers"]:
+        whisker.set(linewidth=1.5, linestyle="--", color="gray")
+    for cap in box_parts["caps"]:
+        cap.set(linewidth=1.5, color="gray")
+    for median in box_parts["medians"]:
+        median.set(linewidth=2, color="red")
+    for mean in box_parts["means"]:
+        mean.set(
+            marker="D", markerfacecolor="blue", markeredgecolor="blue", markersize=6
+        )
+
+    # Labels and formatting
+    ax.set_xlabel("Image", fontsize=14, fontweight="bold")
+    ax.set_ylabel("Diameter (nm)", fontsize=14, fontweight="bold")
+    ax.set_title(
+        "Particle Size Distribution Comparison (Box Plots)",
+        fontsize=16,
+        fontweight="bold",
+        pad=20,
+    )
+    ax.grid(axis="y", alpha=0.3, linestyle="--")
+    plt.xticks(rotation=45, ha="right", fontsize=10)
+    plt.yticks(fontsize=10)
+
+    # Add legend explaining box plot elements
+    from matplotlib.patches import Patch
+    from matplotlib.lines import Line2D
+
+    legend_elements = [
+        Line2D([0], [0], color="red", linewidth=2, label="Median"),
+        Line2D(
+            [0],
+            [0],
+            marker="D",
+            color="w",
+            markerfacecolor="blue",
+            markeredgecolor="blue",
+            markersize=6,
+            label="Mean",
+        ),
+        Patch(facecolor="lightgray", alpha=0.7, label="25th-75th percentile (IQR)"),
+        Line2D(
+            [0],
+            [0],
+            color="gray",
+            linewidth=1.5,
+            linestyle="--",
+            label="Whiskers (1.5×IQR)",
+        ),
+    ]
+    ax.legend(handles=legend_elements, loc="upper right", fontsize=9, framealpha=0.9)
 
     plt.tight_layout()
-    out_path = "outputs/figures/batch_histogram_comparison.png"
+    out_path = "outputs/figures/batch_boxplot_comparison.png"
     plt.savefig(out_path, dpi=300, bbox_inches="tight")
     plt.close()
     print(f"Saved: {out_path}")
 
-    # Figure 2: Morphology comparison
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+    # =====================================================================
+    # Figure 2A: Stacked Bar Chart - Morphology Distribution by Image
+    # =====================================================================
+    fig, ax = plt.subplots(1, 1, figsize=(10, 6))  # Single subplot
 
-    # Stacked bar chart
+    # Prepare data
     x = np.arange(n_images)
     width = 0.6
 
     spherical = [df_summary.iloc[i]["Spherical_Count"] for i in range(n_images)]
     rodlike = [df_summary.iloc[i]["RodLike_Count"] for i in range(n_images)]
     aggregate = [df_summary.iloc[i]["Aggregate_Count"] for i in range(n_images)]
+    totals = [spherical[i] + rodlike[i] + aggregate[i] for i in range(n_images)]
 
-    ax1.bar(x, spherical, width, label="Spherical", color="green", alpha=0.7)
-    ax1.bar(
-        x, rodlike, width, bottom=spherical, label="Rod-like", color="blue", alpha=0.7
+    # Create stacked bars
+    bars1 = ax.bar(x, spherical, width, label="Spherical", color="limegreen", alpha=0.8)
+    bars2 = ax.bar(
+        x,
+        rodlike,
+        width,
+        bottom=spherical,
+        label="Rod-like",
+        color="dodgerblue",
+        alpha=0.8,
     )
     bottom = np.array(spherical) + np.array(rodlike)
-    ax1.bar(
-        x, aggregate, width, bottom=bottom, label="Aggregate", color="red", alpha=0.7
+    bars3 = ax.bar(
+        x, aggregate, width, bottom=bottom, label="Aggregate", color="tomato", alpha=0.8
     )
 
-    ax1.set_xlabel("Image", fontsize=12)
-    ax1.set_ylabel("Particle Count", fontsize=12)
-    ax1.set_title("Morphology Distribution by Image", fontsize=14)
-    ax1.set_xticks(x)
-    ax1.set_xticklabels([img[:15] for img in images], rotation=45, ha="right")
-    ax1.legend()
-    ax1.grid(axis="y", alpha=0.3)
+    # Add percentage labels on each segment
+    for i in range(n_images):
+        total = totals[i]
+        if total == 0:
+            continue  # Skip if no particles
 
-    # Overall morphology pie chart
+        # Spherical percentage label (bottom segment)
+        if spherical[i] > 0:
+            pct_sph = (spherical[i] / total) * 100
+            y_pos = spherical[i] / 2
+            if pct_sph > 5:  # Only show label if segment is large enough
+                ax.text(
+                    i,
+                    y_pos,
+                    f"{pct_sph:.1f}%",
+                    ha="center",
+                    va="center",
+                    fontsize=9,
+                    fontweight="bold",
+                    color="white",
+                )
+
+        # Rod-like percentage label (middle segment)
+        if rodlike[i] > 0:
+            pct_rod = (rodlike[i] / total) * 100
+            y_pos = spherical[i] + (rodlike[i] / 2)
+            if pct_rod > 5:  # Only show label if segment is large enough
+                ax.text(
+                    i,
+                    y_pos,
+                    f"{pct_rod:.1f}%",
+                    ha="center",
+                    va="center",
+                    fontsize=9,
+                    fontweight="bold",
+                    color="white",
+                )
+
+        # Aggregate percentage label (top segment)
+        if aggregate[i] > 0:
+            pct_agg = (aggregate[i] / total) * 100
+            y_pos = spherical[i] + rodlike[i] + (aggregate[i] / 2)
+            if pct_agg > 5:  # Only show label if segment is large enough
+                ax.text(
+                    i,
+                    y_pos,
+                    f"{pct_agg:.1f}%",
+                    ha="center",
+                    va="center",
+                    fontsize=9,
+                    fontweight="bold",
+                    color="white",
+                )
+
+        # Total count label on top of each bar
+        ax.text(
+            i,
+            total + (max(totals) * 0.02),
+            f"n={total}",
+            ha="center",
+            va="bottom",
+            fontsize=10,
+            fontweight="bold",
+            color="black",
+        )
+
+    ax.set_xlabel("Image", fontsize=12, fontweight="bold")
+    ax.set_ylabel("Particle Count", fontsize=12, fontweight="bold")
+    ax.set_title("Morphology Distribution by Image", fontsize=14, fontweight="bold")
+    ax.set_xticks(x)
+    ax.set_xticklabels([img[:15] for img in images], rotation=45, ha="right")
+    ax.legend(loc="upper left", fontsize=10)
+    ax.grid(axis="y", alpha=0.3, linestyle="--")
+    ax.set_ylim(0, max(totals) * 1.1)  # Add 10% headroom for total labels
+
+    plt.tight_layout()
+    out_path = "outputs/figures/batch_morphology_stacked_bars.png"  # ← NEW FILENAME
+    plt.savefig(out_path, dpi=300, bbox_inches="tight")
+    plt.close()
+    print(f"Saved: {out_path}")
+
+    # =====================================================================
+    # Figure 2B: Pie Chart - Overall Morphology Distribution
+    # =====================================================================
+    fig, ax = plt.subplots(1, 1, figsize=(8, 8))  # Single subplot, square for pie
+
+    # Prepare data
     total_spherical = df_all[df_all["Morphology"] == "spherical"].shape[0]
     total_rodlike = df_all[df_all["Morphology"] == "rod-like"].shape[0]
     total_aggregate = df_all[df_all["Morphology"] == "aggregate"].shape[0]
 
-    ax2.pie(
-        [total_spherical, total_rodlike, total_aggregate],
-        labels=["Spherical", "Rod-like", "Aggregate"],
-        autopct="%1.1f%%",
-        colors=["green", "blue", "red"],
+    counts = [total_spherical, total_rodlike, total_aggregate]
+    labels = ["Spherical", "Rod-like", "Aggregate"]
+    colors = ["limegreen", "dodgerblue", "tomato"]  # Brighter colors matching bar chart
+
+    # Custom autopct function to show both percentage and count
+    def make_autopct(values):
+        def my_autopct(pct):
+            total = sum(values)
+            val = int(round(pct * total / 100.0))
+            return f"{pct:.1f}%\n(n={val})"  # Shows percentage and count
+
+        return my_autopct
+
+    wedges, texts, autotexts = ax.pie(
+        counts,
+        labels=labels,
+        autopct=make_autopct(counts),
+        colors=colors,
         startangle=90,
+        textprops={"fontsize": 10, "fontweight": "bold"},
+        explode=(0.05, 0.05, 0.05),  # Slightly separate slices for clarity
     )
-    ax2.set_title("Overall Morphology Distribution (All Images)", fontsize=14)
+
+    # Make percentage/count text white and bold
+    for autotext in autotexts:
+        autotext.set_color("white")
+        autotext.set_fontsize(11)
+        autotext.set_fontweight("bold")
+
+    # Make label text bold
+    for text in texts:
+        text.set_fontsize(11)
+        text.set_fontweight("bold")
+
+    ax.set_title(
+        "Overall Morphology Distribution (All Images)",
+        fontsize=14,
+        fontweight="bold",
+        pad=20,
+    )
 
     plt.tight_layout()
-    out_path = "outputs/figures/batch_morphology_comparison.png"
+    out_path = "outputs/figures/batch_morphology_pie_chart.png"  # ← NEW FILENAME
     plt.savefig(out_path, dpi=300, bbox_inches="tight")
     plt.close()
     print(f"Saved: {out_path}")
 
     # Figure 3: Statistics table visualization
-    fig, ax = plt.subplots(figsize=(14, max(4, n_images * 0.5)))
+    fig, ax = plt.subplots(figsize=(8, max(2, n_images * 0.5)))
     ax.axis("tight")
     ax.axis("off")
 
@@ -289,6 +459,7 @@ def plot_batch_comparison(df_all, df_summary):
             "Total_Particles",
             "Mean_Diameter_nm",
             "Std_Diameter_nm",
+            "Median_Diameter_nm",
             "Spherical_Count",
             "RodLike_Count",
             "Aggregate_Count",
@@ -296,6 +467,7 @@ def plot_batch_comparison(df_all, df_summary):
     ].copy()
     table_data["Mean_Diameter_nm"] = table_data["Mean_Diameter_nm"].round(2)
     table_data["Std_Diameter_nm"] = table_data["Std_Diameter_nm"].round(2)
+    table_data["Median_Diameter_nm"] = table_data["Median_Diameter_nm"].round(2)
 
     table = ax.table(
         cellText=table_data.values,
@@ -304,6 +476,7 @@ def plot_batch_comparison(df_all, df_summary):
             "Total",
             "Mean (nm)",
             "Std (nm)",
+            "Median (nm)",
             "Spherical",
             "Rod-like",
             "Aggregate",
@@ -320,8 +493,17 @@ def plot_batch_comparison(df_all, df_summary):
         table[(0, i)].set_facecolor("#4CAF50")
         table[(0, i)].set_text_props(weight="bold", color="white")
 
-    plt.title("Batch Processing Summary Statistics", fontsize=16, pad=20)
+    # AUTO-FIT column widths to content
+    table.auto_set_column_width(col=list(range(len(table_data.columns))))
+
     out_path = "outputs/figures/batch_summary_table.png"
-    plt.savefig(out_path, dpi=300, bbox_inches="tight")
+    plt.savefig(
+        out_path, dpi=300, bbox_inches="tight", pad_inches=0.15
+    )  # Small padding
     plt.close()
     print(f"Saved: {out_path}")
+
+    # Reduce space between title and table
+    # plt.title(
+    # "Batch Processing Summary Statistics", fontsize=16, pad=5
+    # )  # Reduced from pad=20

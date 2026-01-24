@@ -81,7 +81,7 @@ def show_usage_examples() -> None:
 
     print("\n5️⃣  Auto-detect scale bar with Tesseract (CPU, fast):")
     print("   python3 nanopsd.py --mode single --input sample.tif \\")
-    print("                      --scale-bar-nm -1 --ocr-backend tesseract \\")
+    print("                      --ocr-backend tesseract \\")
     print("                      --algo classical --min-size 3")
 
     print("\n6️⃣  Auto-detect scale bar with EasyOCR (GPU, accurate):")

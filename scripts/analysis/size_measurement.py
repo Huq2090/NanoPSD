@@ -329,3 +329,84 @@ def export_to_latex(diameters, img_path, out_path="outputs/report.tex"):
         f.write(f"Variance (nm$^2$) & {var:.2f} \\\\\n")
         f.write(f"Min/Max (nm) & {mn:.2f} / {mx:.2f} \\\\\n")
         f.write("\\end{tabular}\n")
+
+
+def export_summary_csv(diameters, df, img_path):
+    """
+    Export summary statistics to CSV format for SINGLE IMAGE analysis.
+
+    This function is called ONLY in single-image mode to generate a per-image
+    summary CSV file. In batch mode, the batch_summary.csv is generated instead.
+
+    Parameters:
+    -----------
+    diameters : list of float
+        Particle diameters in nanometers
+    df : pd.DataFrame
+        Full particle data with morphology classifications
+    img_path : str
+        Path to the analyzed image
+
+    Returns:
+    --------
+    None
+        CSV file written to outputs/results/{image_name}_summary.csv
+    """
+    import os
+    import pandas as pd
+    from scipy.stats import describe
+
+    # Generate output filename from image name
+    base_name = os.path.splitext(os.path.basename(img_path))[0]
+    out_path = f"outputs/results/{base_name}_summary.csv"
+
+    # Ensure output directory exists
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+
+    # Handle empty results gracefully
+    if not diameters or len(diameters) == 0:
+        summary_data = {
+            "Image": [os.path.basename(img_path)],
+            "Total_Particles": [0],
+            "Mean_Diameter_nm": [0.0],
+            "Std_Diameter_nm": [0.0],
+            "Median_Diameter_nm": [0.0],
+            "Min_Diameter_nm": [0.0],
+            "Max_Diameter_nm": [0.0],
+            "Spherical_Count": [0],
+            "RodLike_Count": [0],
+            "Aggregate_Count": [0],
+        }
+    else:
+        # Calculate descriptive statistics
+        stats = describe(diameters)
+
+        # Count morphology types
+        if df is not None and "Morphology" in df.columns:
+            spherical_count = len(df[df["Morphology"] == "spherical"])
+            rodlike_count = len(df[df["Morphology"] == "rod-like"])
+            aggregate_count = len(df[df["Morphology"] == "aggregate"])
+        else:
+            spherical_count = 0
+            rodlike_count = 0
+            aggregate_count = 0
+
+        # Create summary dictionary
+        summary_data = {
+            "Image": [os.path.basename(img_path)],
+            "Total_Particles": [int(stats.nobs)],
+            "Mean_Diameter_nm": [float(stats.mean)],
+            "Std_Diameter_nm": [float(stats.variance**0.5 if stats.variance else 0.0)],
+            "Median_Diameter_nm": [float(pd.Series(diameters).median())],
+            "Min_Diameter_nm": [float(stats.minmax[0])],
+            "Max_Diameter_nm": [float(stats.minmax[1])],
+            "Spherical_Count": [int(spherical_count)],
+            "RodLike_Count": [int(rodlike_count)],
+            "Aggregate_Count": [int(aggregate_count)],
+        }
+
+    # Convert to DataFrame and save
+    df_summary = pd.DataFrame(summary_data)
+    df_summary.to_csv(out_path, index=False)
+
+    print(f"Saved summary statistics: {out_path}")

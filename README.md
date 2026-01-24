@@ -125,30 +125,53 @@ NanoPSD/
 └── outputs/                   # Generated results & reports
     ├── debug/                 # Debug intermediate images
     ├── figures/               # Plots, overlays, batch comparisons
-    │   ├── histogram.png
-    │   ├── batch_histogram_comparison.png
-    │   ├── batch_morphology_comparison.png
-    │   └── batch_summary_table.png
+    │   │
+    │   ├── # Single Image Outputs:
+    │   ├── {image}_diameter_histogram.png
+    │   ├── {image}_morphology_histograms.png
+    │   ├── {image}_morphology_pie.png
+    │   ├── {image}_morphology_overlay.{ext}
+    │   ├── {image}_true_contours.{ext}
+    │   ├── {image}_circular_equivalent.{ext}
+    │   ├── {image}_elliptical_equivalent.{ext}
+    │   ├── {image}_all_contour_types.{ext}
+    │   │
+    │   └── # Batch Mode Outputs:
+    │       ├── batch_boxplot_comparison.png          # Size distribution box plots
+    │       ├── batch_morphology_stacked_bars.png     # Morphology counts by image
+    │       ├── batch_morphology_pie_chart.png        # Overall morphology distribution
+    │       └── batch_summary_table.png               # Statistics table visualization
+    │
     ├── preprocessed/          # Preprocessed images
     ├── preprocessing_steps/   # Step-by-step preprocessing (--save-preprocessing-steps)
-    │   ├── *_step1_original.png
-    │   ├── *_step2_normalized.png
-    │   ├── *_step3_clahe.png
-    │   ├── *_step4_gaussian_blur.png
-    │   ├── *_step5_otsu_threshold.png
-    │   └── *_step6_inverted.png
+    │   ├── {image}_step1_original.png
+    │   ├── {image}_step2_normalized.png
+    │   ├── {image}_step3_clahe.png
+    │   ├── {image}_step4_gaussian_blur.png
+    │   ├── {image}_step5_otsu_threshold.png
+    │   └── {image}_step6_inverted.png
+    │
     ├── segmentation_steps/    # Step-by-step segmentation (--save-segmentation-steps)
-    │   ├── *_step1_input_binary.png
-    │   ├── *_step2_after_small_removal.png
-    │   ├── *_step3_after_large_removal.png
-    │   ├── *_step4_after_hole_filling.png
-    │   └── *_step5_labeled_components.png
-    ├── results/               # .tex & CSV summaries
-    │   ├── nanoparticle_data.csv
-    │   ├── batch_all_particles.csv      # Combined batch data
-    │   ├── batch_summary.csv            # Per-image statistics
-    │   └── sample_image_*_summary.tex
-    └── report.tex             # Example LaTeX report
+    │   ├── {image}_step1_input_binary.png
+    │   ├── {image}_step2_after_small_removal.png
+    │   ├── {image}_step3_after_large_removal.png
+    │   ├── {image}_step4_after_hole_filling.png
+    │   └── {image}_step5_labeled_components.png
+    │
+    ├── results/               # CSV & LaTeX summaries
+    │   │
+    │   ├── # Single Image Outputs:
+    │   ├── nanoparticle_data.csv          # Per-particle detailed data
+    │   ├── {image_name}_summary.csv       # Summary statistics
+    │   ├── report.tex                     # LaTeX summary
+    │   │
+    │   └── # Batch Mode Outputs:
+    │       ├── batch_all_particles.csv    # Combined data from all images
+    │       └── batch_summary.csv          # Per-image summary statistics
+    │
+    └── scale_bar_debug/       # Scale bar detection visualization (optional)
+        ├── scale_candidates.png
+        └── scale_bar_final.png
 ```
 
 ---
@@ -467,8 +490,9 @@ python3 nanopsd.py --mode batch --input ./batch_images --algo classical --min-si
 **Aggregate Batch Outputs:**
 - `batch_all_particles.csv` - Combined dataset from all images
 - `batch_summary.csv` - Summary statistics per image
-- `batch_histogram_comparison.png` - Side-by-side histograms
-- `batch_morphology_comparison.png` - Morphology distribution comparison
+- `batch_boxplot_comparison.png` - Box plot comparison showing size distributions
+- `batch_morphology_stacked_bars.png` - Morphology distribution by image (stacked bar chart)
+- `batch_morphology_pie_chart.png` - Overall morphology distribution (pie chart)
 - `batch_summary_table.png` - Statistical summary table
 
 **Example batch folder:**
@@ -562,7 +586,7 @@ NanoPSD automatically classifies particles into three morphological categories b
 | Type | Description | Criteria |
 |------|-------------|----------|
 | **Spherical** | Round, compact particles | Aspect ratio < 1.5, Circularity > 0.75, Solidity > 0.90 |
-| **Rod-like** | Elongated particles | Aspect ratio ≥ 2.0, Smooth boundaries (Solidity > 0.85) |
+| **Rod-like** | Elongated particles | Aspect ratio ≥ 1.8, Smooth boundaries (Solidity > 0.80) |
 | **Aggregate** | Clustered or irregular particles | Low solidity < 0.85 or irregular boundaries (Circularity < 0.60) |
 
 ### Shape Metrics
@@ -583,11 +607,86 @@ Particles are color-coded in the morphology overlay:
 
 ### Output Files
 
-Morphology analysis generates additional outputs:
-1. `{image}_morphology_overlay.png` - Color-coded particle contours
-2. `{image}_morphology_histograms.png` - 4-panel size distributions by type
-3. `{image}_morphology_pie.png` - Pie chart showing type distribution
-4. `nanoparticle_data.csv` - Includes morphology classification and shape metrics
+#### Single Image Mode
+
+NanoPSD generates the following outputs for each image:
+
+**1. Detailed Particle Data** (`nanoparticle_data.csv`):
+```csv
+Diameter (nm),Diameter (pixels),Centroid_X,Centroid_Y,Aspect_Ratio,Circularity,Solidity,Extent,Morphology
+42.5,20.8,523.4,312.1,1.2,0.85,0.92,0.78,spherical
+37.8,18.5,601.2,445.8,2.3,0.65,0.87,0.71,rod-like
+56.2,27.5,234.7,189.3,1.8,0.54,0.71,0.65,aggregate
+...
+```
+
+**2. Summary Statistics** (`{image_name}_summary.csv`):
+```csv
+Image,Total_Particles,Mean_Diameter_nm,Std_Diameter_nm,Median_Diameter_nm,Min_Diameter_nm,Max_Diameter_nm,Spherical_Count,RodLike_Count,Aggregate_Count
+sample_image.tif,147,42.35,12.78,39.21,18.45,89.32,89,32,26
+```
+
+**3. Visualizations** (in `outputs/figures/`):
+- `{image}_diameter_histogram.png` - Overall size distribution histogram
+- `{image}_morphology_overlay.{ext}` - Color-coded particle contours (Green=Spherical, Blue=Rod-like, Red=Aggregate)
+- `{image}_morphology_histograms.png` - 4-panel size distributions by particle type
+- `{image}_morphology_pie.png` - Pie chart showing morphology distribution
+- `{image}_true_contours.{ext}` - True detected contours overlay
+- `{image}_circular_equivalent.{ext}` - Circular equivalent diameter overlay
+- `{image}_elliptical_equivalent.{ext}` - Elliptical fit overlay
+- `{image}_all_contour_types.{ext}` - Combined contour visualization (all three types)
+
+**4. LaTeX Summary** (`report.tex`):
+Statistical summary table formatted for direct inclusion in scientific documents.
+
+---
+
+#### Batch Mode
+
+**1. Combined Particle Data** (`batch_all_particles.csv`):
+
+All particles from all images with source tracking:
+```csv
+Image,Diameter (nm),Diameter (pixels),Centroid_X,Centroid_Y,Aspect_Ratio,Circularity,Solidity,Extent,Morphology
+sample_1.tif,42.5,20.8,523.4,312.1,1.2,0.85,0.92,0.78,spherical
+sample_1.tif,37.8,18.5,601.2,445.8,2.3,0.65,0.87,0.71,rod-like
+sample_2.tif,56.2,27.5,234.7,189.3,1.8,0.54,0.71,0.65,aggregate
+...
+```
+
+**2. Batch Summary** (`batch_summary.csv`):
+
+Per-image statistics for all processed images:
+```csv
+Image,Total_Particles,Mean_Diameter_nm,Std_Diameter_nm,Median_Diameter_nm,Min_Diameter_nm,Max_Diameter_nm,Spherical_Count,RodLike_Count,Aggregate_Count
+sample_1.tif,147,42.35,12.78,39.21,18.45,89.32,89,32,26
+sample_2.tif,203,38.92,10.45,36.78,20.12,75.43,142,45,16
+sample_3.tif,189,45.67,15.23,41.55,22.34,95.67,98,54,37
+```
+
+**Key Features:**
+- Comprehensive statistics for each image in the batch
+- Median diameter included for robust central tendency measure
+- Morphology counts enable comparison of particle type distributions
+- All values rounded to 2 decimal places for readability
+
+**3. Comparative Visualizations** (in `outputs/figures/`):
+- `batch_boxplot_comparison.png` - Box plot comparison showing median, quartiles, and outliers
+- `batch_morphology_stacked_bars.png` - Morphology distribution by image (stacked bar chart with percentages)
+- `batch_morphology_pie_chart.png` - Overall morphology distribution across all images (pie chart with counts)
+- `batch_summary_table.png` - Summary statistics table visualization
+
+---
+
+### Statistical Metrics
+
+All summary files (both single and batch mode) include:
+- **Total Particles**: Count of detected particles after filtering
+- **Mean Diameter**: Average particle size (nm)
+- **Standard Deviation**: Spread of size distribution (nm)
+- **Median Diameter**: 50th percentile particle size (nm) - robust to outliers
+- **Min/Max Diameter**: Size range (nm)
+- **Morphology Counts**: Number of spherical, rod-like, and aggregate particles
 
 ### Example Console Output
 **Input Command:**
@@ -613,6 +712,7 @@ Morphology distribution: {'aggregate': 327, 'spherical': 37, 'rod-like': 13}
  - outputs/figures/sample_image_1_morphology_overlay.tif
 2026-01-03 22:59:33,443 [INFO] Measured 377 particles (post-filter).
 Saved: outputs/figures/sample_image_1_diameter_histogram.png
+Saved summary statistics: outputs/results/sample_image_1_summary.csv
 
 ============================================================
 MORPHOLOGY SUMMARY
@@ -622,20 +722,6 @@ Rod-like    :   13 (  3.4%)  Avg:   9.63 nm
 Aggregate   :  327 ( 86.7%)  Avg:  13.61 nm
 ============================================================
 2026-01-03 22:59:34,805 [INFO] Completed: sample_image_1.tif | Count=377
-```
-
-## Batch Mode Outputs
-
-When processing multiple images in batch mode, NanoPSD generates comprehensive comparison reports.
-
-### Combined Particle Data
-**File:** `outputs/results/batch_all_particles.csv`
-
-All particles from all images with source tracking:
-```csv
-Image,Particle_ID,Diameter_nm,Morphology,Aspect_Ratio,Circularity,Solidity,Extent
-sample_1.png,1,42.5,Spherical,1.2,0.85,0.92,0.78
-sample_2.png,1,56.2,Rod-like,2.3,0.65,0.87,0.71
 ```
 
 ## Troubleshooting

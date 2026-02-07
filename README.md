@@ -71,6 +71,8 @@ Provide `--scale-bar-nm` parameter to the CLI manually. This is the fastest and 
 ## Project Structure
 ```bash
 NanoPSD/
+├── CITATION.cff               # Guideline for citation
+├── LICENSE                    # GPL-3.0 license
 ├── README.md                  # Project overview & usage
 ├── requirements.txt           # Python dependencies
 ├── imglab_environment.yml     # Conda environment

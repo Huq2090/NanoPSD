@@ -1,5 +1,5 @@
 # NanoPSD
-**Software Package for Analyzing Plasma-Synthesized Nanoparticle Shape Distribution**
+**Software Package for Analyzing Nanoparticle Shape Distribution**
 
 NanoPSD is a production-ready Python package designed to extract **particle shape distributions (PSD)** of **Nanoparticles (NPs)** from **TEM/STEM images**.
 It supports both **single-image** and **batch image** analysis, providing a modular and object-oriented pipeline for nanoparticle research and metrology.
@@ -884,9 +884,15 @@ Contributions are welcome! Please fork the repo and submit a pull request.
 
 ## License
 
-This project is licensed under the **MIT License** – see the [LICENSE](LICENSE) file for details.
+NanoPSD is free software released under the GNU General Public License
+version 3 or later (GPL-3.0-or-later).
 
-*Note: License will be updated after consultation with Prof. Davide*
+You are free to use, modify, and redistribute this software under the
+terms of the GPL, provided that any distributed modifications remain
+licensed under the same terms and that the corresponding source code
+is made available.
+
+See the LICENSE file for full details.
 
 ---
 
@@ -895,7 +901,7 @@ This project is licensed under the **MIT License** – see the [LICENSE](LICENSE
 If you use NanoPSD in academic work, please cite:
 
 ```
-Huq, M.F. (2025). NanoPSD: Automated Nanoparticle Size and Morphology Distribution Analysis
+Huq, M.F. (2026). NanoPSD: Automated Nanoparticle Size and Morphology Distribution Analysis
 from Electron Microscopy Images. GitHub repository.
 https://github.com/Huq2090/NanoPSD
 ```

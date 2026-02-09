@@ -30,16 +30,145 @@ def plot_results(diameters_nm, image_path, df=None):
     """
     base = os.path.splitext(os.path.basename(image_path))[0]
 
-    # === EXISTING: Overall histogram (UNCHANGED) ===
-    plt.figure(figsize=(10, 4))
-    plt.hist(diameters_nm, bins=30, color="skyblue", edgecolor="black")
-    plt.xlabel("Diameter (nm)")
-    plt.ylabel("Count")
-    plt.title(f"Histogram of Nanoparticle Diameters: {base}")
-    plt.grid(True)
+    # === IMPROVED: Overall histogram with clear bins and statistics ===
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    # Calculate statistics
+    mean_val = np.mean(diameters_nm)
+    std_val = np.std(diameters_nm)
+    median_val = np.median(diameters_nm)
+    min_val = np.min(diameters_nm)
+    max_val = np.max(diameters_nm)
+    n_particles = len(diameters_nm)
+
+    # Create SMART bin edges (nice round numbers)
+    data_range = max_val - min_val
+
+    if data_range <= 20:
+        bin_width = 1  # 1 nm bins for small range
+    elif data_range <= 50:
+        bin_width = 2  # 2 nm bins for medium range
+    else:
+        bin_width = 5  # 5 nm bins for large range
+
+    # Create bins starting from floor of min, ending at ceil of max
+    bin_start = np.floor(min_val / bin_width) * bin_width
+    bin_end = np.ceil(max_val / bin_width) * bin_width
+    bins = np.arange(bin_start, bin_end + bin_width, bin_width)
+
+    # Create histogram
+    n, bins_edges, patches = ax.hist(
+        diameters_nm,
+        bins=bins,
+        color="skyblue",
+        edgecolor="black",
+        linewidth=1.2,
+        alpha=0.8,
+    )
+
+    # Add vertical line at mean
+    ax.axvline(
+        mean_val,
+        color="red",
+        linestyle="--",
+        linewidth=2,
+        label=f"Mean = {mean_val:.2f} nm",
+        zorder=5,
+    )
+
+    # Add vertical line at median
+    ax.axvline(
+        median_val,
+        color="blue",
+        linestyle="--",
+        linewidth=2,
+        label=f"Median = {median_val:.2f} nm",
+        zorder=5,
+    )
+
+    # Set x-ticks at EVERY bin edge for clarity
+    ax.set_xticks(bins)
+    ax.set_xticklabels(
+        [f"{int(b)}" if b == int(b) else f"{b:.1f}" for b in bins],
+        rotation=45,
+        ha="right",
+        fontsize=12,
+    )
+
+    # Labels and title
+    ax.set_xlabel("Diameter (nm)", fontsize=14, fontweight="bold")
+    ax.set_ylabel("Particle Count", fontsize=14, fontweight="bold")
+    ax.set_title(
+        f"Particle Size Distribution: {base}", fontsize=16, fontweight="bold", pad=15
+    )
+
+    # Y-axis ticks
+    ax.tick_params(axis="y", labelsize=12)
+
+    # Grid aligned with bins
+    ax.set_axisbelow(True)
+    ax.grid(axis="y", alpha=0.3, linestyle="--")
+    ax.grid(axis="x", alpha=0.2, linestyle=":")
+
+    # Add statistics text box
+    # Add statistics text box (without mean/median in main box)
+    stats_text = (
+        f"  Statistics (n = {n_particles})  \n"
+        f"  ─────────────────────────  \n"
+        f"                              \n"  # Space for Mean (will overlay in red)
+        f"                              \n"  # Space for Median (will overlay in blue)
+        f"  Std Dev : {std_val:6.2f} nm\n"
+        f"  Min     : {min_val:6.2f} nm\n"
+        f"  Max     : {max_val:6.2f} nm\n"
+        f"  ─────────────────────────  \n"
+        f"  Bin     : {bin_width:6.0f} nm"
+    )
+
+    # Create the background text box
+    ax.text(
+        0.98,
+        0.97,
+        stats_text,
+        transform=ax.transAxes,
+        fontsize=12,
+        verticalalignment="top",
+        horizontalalignment="right",
+        bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.85, pad=0.6),
+        family="monospace",
+        linespacing=1.2,
+    )
+
+    # Overlay Mean in RED
+    ax.text(
+        0.98,
+        0.895,
+        f"  Mean    : {mean_val:6.2f} nm",
+        transform=ax.transAxes,
+        fontsize=12,
+        verticalalignment="top",
+        horizontalalignment="right",
+        color="red",
+        fontweight="bold",
+        family="monospace",
+    )
+
+    # Overlay Median in BLUE
+    ax.text(
+        0.98,
+        0.860,
+        f"  Median  : {median_val:6.2f} nm",
+        transform=ax.transAxes,
+        fontsize=12,
+        verticalalignment="top",
+        horizontalalignment="right",
+        color="blue",
+        fontweight="bold",
+        family="monospace",
+    )
+
     plt.tight_layout()
     out_path = f"outputs/figures/{base}_diameter_histogram.png"
-    plt.savefig(out_path)
+    plt.savefig(out_path, dpi=300, bbox_inches="tight")
     plt.close()
     print(f"Saved: {out_path}")
 
@@ -348,8 +477,8 @@ def plot_batch_comparison(df_all, df_summary):
         pad=20,
     )
     ax.grid(axis="y", alpha=0.3, linestyle="--")
-    plt.xticks(rotation=45, ha="right", fontsize=10)
-    plt.yticks(fontsize=10)
+    plt.xticks(rotation=45, ha="right", fontsize=14)
+    plt.yticks(fontsize=14)
 
     # Add legend explaining box plot elements
     from matplotlib.patches import Patch
@@ -377,7 +506,7 @@ def plot_batch_comparison(df_all, df_summary):
             label="Whiskers (1.5×IQR)",
         ),
     ]
-    ax.legend(handles=legend_elements, loc="upper right", fontsize=9, framealpha=0.9)
+    ax.legend(handles=legend_elements, loc="upper right", fontsize=12, framealpha=0.9)
 
     plt.tight_layout()
     out_path = "outputs/figures/batch_boxplot_comparison.png"
@@ -481,12 +610,15 @@ def plot_batch_comparison(df_all, df_summary):
             color="black",
         )
 
-    ax.set_xlabel("Image", fontsize=12, fontweight="bold")
-    ax.set_ylabel("Particle Count", fontsize=12, fontweight="bold")
-    ax.set_title("Morphology Distribution by Image", fontsize=14, fontweight="bold")
+    ax.set_xlabel("Image", fontsize=14, fontweight="bold")
+    ax.set_ylabel("Particle Count", fontsize=14, fontweight="bold")
+    ax.set_title("Morphology Distribution by Image", fontsize=18, fontweight="bold")
     ax.set_xticks(x)
-    ax.set_xticklabels([img[:15] for img in images], rotation=45, ha="right")
-    ax.legend(loc="upper left", fontsize=10)
+    ax.set_xticklabels(
+        [img[:15] for img in images], rotation=45, ha="right", fontsize=12
+    )
+    ax.tick_params(axis="y", labelsize=12)
+    ax.legend(loc="upper left", fontsize=12)
     ax.grid(axis="y", alpha=0.3, linestyle="--")
     ax.set_ylim(0, max(totals) * 1.1)  # Add 10% headroom for total labels
 
@@ -525,30 +657,30 @@ def plot_batch_comparison(df_all, df_summary):
         autopct=make_autopct(counts),
         colors=colors,
         startangle=90,
-        textprops={"fontsize": 10, "fontweight": "bold"},
+        textprops={"fontsize": 14, "fontweight": "bold"},
         explode=(0.05, 0.05, 0.05),  # Slightly separate slices for clarity
     )
 
     # Make percentage/count text white and bold
     for autotext in autotexts:
         autotext.set_color("white")
-        autotext.set_fontsize(11)
+        autotext.set_fontsize(14)
         autotext.set_fontweight("bold")
 
     # Make label text bold
     for text in texts:
-        text.set_fontsize(11)
+        text.set_fontsize(14)
         text.set_fontweight("bold")
 
     ax.set_title(
         "Overall Morphology Distribution (All Images)",
-        fontsize=14,
+        fontsize=18,
         fontweight="bold",
         pad=20,
     )
 
     plt.tight_layout()
-    out_path = "outputs/figures/batch_morphology_pie_chart.png"  # ← NEW FILENAME
+    out_path = "outputs/figures/batch_morphology_pie_chart.png"
     plt.savefig(out_path, dpi=300, bbox_inches="tight")
     plt.close()
     print(f"Saved: {out_path}")

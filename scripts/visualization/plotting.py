@@ -186,12 +186,15 @@ def plot_results(diameters_nm, image_path, df=None):
     # Create box plot for particle diameters
     box_parts = ax.boxplot(
         [diameters_nm],  # Single dataset in a list
-        labels=["Particle Diameters"],
+        # labels=["Particle Diameters"],
         patch_artist=True,  # Enable filling
         notch=False,
         showmeans=True,  # Show mean as a marker
         meanline=False,
     )
+
+    # Remove x-axis tick labels (no "1" showing)
+    ax.set_xticklabels([])
 
     # Customize appearance
     box_parts["boxes"][0].set_facecolor("lightblue")
@@ -209,11 +212,13 @@ def plot_results(diameters_nm, image_path, df=None):
         )
 
     # Labels and formatting
+    ax.set_xlabel("", fontsize=18, fontweight="bold")
     ax.set_ylabel("Equivalent Diameter (nm)", fontsize=18, fontweight="bold")
     ax.set_title(
         f"Particle Size Distribution - {base}", fontsize=20, fontweight="bold", pad=20
     )
     ax.grid(axis="y", alpha=0.3, linestyle="--")
+    ax.tick_params(axis="y", labelsize=16)
 
     # Add legend
     from matplotlib.patches import Patch
@@ -902,17 +907,17 @@ def plot_batch_comparison(df_all, df_summary):
         )
 
     # Labels and formatting
-    ax.set_xlabel("Image", fontsize=14, fontweight="bold")
-    ax.set_ylabel("Diameter (nm)", fontsize=14, fontweight="bold")
+    ax.set_xlabel("Images", fontsize=18, fontweight="bold")
+    ax.set_ylabel("Equivalent Diameter (nm)", fontsize=18, fontweight="bold")
     ax.set_title(
         "Particle Size Distribution Comparison (Box Plots)",
-        fontsize=16,
+        fontsize=20,
         fontweight="bold",
         pad=20,
     )
     ax.grid(axis="y", alpha=0.3, linestyle="--")
-    plt.xticks(rotation=45, ha="right", fontsize=14)
-    plt.yticks(fontsize=14)
+    plt.xticks(rotation=45, ha="right", fontsize=16)
+    plt.yticks(fontsize=16)
 
     # Add legend explaining box plot elements
     from matplotlib.patches import Patch
@@ -940,7 +945,7 @@ def plot_batch_comparison(df_all, df_summary):
             label="Whiskers (1.5×IQR)",
         ),
     ]
-    ax.legend(handles=legend_elements, loc="upper right", fontsize=12, framealpha=0.9)
+    ax.legend(handles=legend_elements, loc="upper right", fontsize=16, framealpha=0.7)
 
     plt.tight_layout()
     out_path = "outputs/figures/batch_boxplot_comparison.png"

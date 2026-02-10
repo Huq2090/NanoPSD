@@ -221,6 +221,11 @@ def main() -> None:
     # If arguments are invalid, argparse will print help and exit automatically
     args = parse_args()
 
+    # Validate and get morphology thresholds
+    from scripts.cli import validate_morphology_thresholds
+
+    thresholds = validate_morphology_thresholds(args)
+
     # -------------------------------------------------------------------------
     # Step 2: Setup output directory structure
     # -------------------------------------------------------------------------
@@ -255,6 +260,14 @@ def main() -> None:
         verify_scale_bar=args.verify_scale_bar,  # Enable manual verification of scale detection
         save_preprocessing_steps=args.save_preprocessing_steps,
         save_segmentation_steps=args.save_segmentation_steps,
+        # Morphology classification thresholds
+        spherical_ar_max=thresholds["spherical_ar_max"],
+        rodlike_ar_min=thresholds["rodlike_ar_min"],
+        aggregate_c_max=thresholds["aggregate_c_max"],
+        spherical_c_min=thresholds["spherical_c_min"],
+        rodlike_s_min=thresholds["rodlike_s_min"],
+        aggregate_s_max=thresholds["aggregate_s_max"],
+        spherical_s_min=thresholds["spherical_s_min"],
     )
 
     # -------------------------------------------------------------------------

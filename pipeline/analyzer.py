@@ -141,6 +141,14 @@ class NanoparticleAnalyzer:
         nm_per_pixel: float = None,  # Adding capability to directly input nm_per_pixel
         save_preprocessing_steps: bool = False,
         save_segmentation_steps: bool = False,
+        # Morphology classification thresholds
+        spherical_ar_max=1.5,
+        rodlike_ar_min=1.8,
+        aggregate_c_max=0.60,
+        spherical_c_min=0.75,
+        rodlike_s_min=0.80,
+        aggregate_s_max=0.85,
+        spherical_s_min=0.90,
     ) -> None:
         """
         Initialize the analyzer with user parameters.
@@ -220,6 +228,15 @@ class NanoparticleAnalyzer:
 
         # Store results for batch aggregation
         self.batch_results = []  # Will hold DataFrames from each image
+
+        # Store morphology thresholds
+        self.spherical_ar_max = spherical_ar_max
+        self.rodlike_ar_min = rodlike_ar_min
+        self.aggregate_c_max = aggregate_c_max
+        self.spherical_c_min = spherical_c_min
+        self.rodlike_s_min = rodlike_s_min
+        self.aggregate_s_max = aggregate_s_max
+        self.spherical_s_min = spherical_s_min
 
         # Validate: exactly one calibration method
         has_scale_bar = self.scale_bar_nm is not None
@@ -602,6 +619,14 @@ class NanoparticleAnalyzer:
                 img_path,
                 min_size_px=self.min_size_px,
                 max_size_px=self.max_size_px,
+                # Pass morphology thresholds
+                spherical_ar_max=self.spherical_ar_max,
+                spherical_c_min=self.spherical_c_min,
+                spherical_s_min=self.spherical_s_min,
+                aggregate_s_max=self.aggregate_s_max,
+                aggregate_c_max=self.aggregate_c_max,
+                rodlike_ar_min=self.rodlike_ar_min,
+                rodlike_s_min=self.rodlike_s_min,
             )
             logging.info(f"Measured {len(diameters_nm)} particles (post-filter).")
 

@@ -35,6 +35,14 @@ def measure_particles(
     image_path,
     min_size_px=5,
     max_size_px=None,
+    # Morphology classification thresholds
+    spherical_ar_max=1.5,
+    spherical_c_min=0.75,
+    spherical_s_min=0.90,
+    aggregate_s_max=0.85,
+    aggregate_c_max=0.60,
+    rodlike_ar_min=1.8,
+    rodlike_s_min=0.80,
 ):
     """
     Measures the diameters of segmented nanoparticles and overlays contours on the original image.
@@ -162,11 +170,16 @@ def measure_particles(
                 extent = region.extent
 
                 # Classification logic (priority: aggregate > spherical > rod-like)
-                if solidity < 0.85 or circularity < 0.60:
+                # Using configurable thresholds
+                if solidity < aggregate_s_max or circularity < aggregate_c_max:
                     morphology = "aggregate"
-                elif aspect_ratio < 1.5 and circularity > 0.75 and solidity > 0.90:
+                elif (
+                    aspect_ratio < spherical_ar_max
+                    and circularity > spherical_c_min
+                    and solidity > spherical_s_min
+                ):
                     morphology = "spherical"
-                elif aspect_ratio >= 1.8 and solidity > 0.80:
+                elif aspect_ratio >= rodlike_ar_min and solidity > rodlike_s_min:
                     morphology = "rod-like"
                 else:
                     morphology = "aggregate"

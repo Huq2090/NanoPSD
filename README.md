@@ -13,6 +13,10 @@ It supports both **single-image** and **batch image** analysis, providing a modu
 - **Size extraction & visualization** (histograms, plots, CSV export)
 - **Flexible particle filtering** with `--min-size` and `--max-size` (removes noise and false detections)
 - **Pipeline visualization** for papers and presentations (`--save-preprocessing-steps`, `--save-segmentation-steps`)
+- **Morphology-based nanoparticle classification** (spherical, rod-like, aggregate)
+- **Customizable morphology thresholds** via optional CLI flags
+- **Publication-quality plots** with enhanced font sizes and statistics
+- **Comprehensive shape analysis** (aspect ratio, circularity, solidity distributions)
 - **Classification of nanoparticles** based on **morphology**
 - Works with both **single images** and **batch folders**
 - Modular, **object-oriented codebase** for easy extension
@@ -129,13 +133,18 @@ NanoPSD/
     ├── figures/               # Plots, overlays, batch comparisons
     │   │
     │   ├── # Single Image Outputs:
-    │   ├── {image}_diameter_histogram.png
-    │   ├── {image}_boxplot.png.png
-    │   ├── {image}_morphology_overlay.{ext}
-    │   ├── {image}_true_contours.{ext}
-    │   ├── {image}_circular_equivalent.{ext}
-    │   ├── {image}_elliptical_equivalent.{ext}
-    │   ├── {image}_all_contour_types.{ext}
+    │   ├── {image}_diameter_histogram.png           # Size distribution with statistics
+    │   ├── {image}_aspect_ratio_histogram.png       # Aspect ratio distribution
+    │   ├── {image}_circularity_histogram.png        # Circularity distribution
+    │   ├── {image}_solidity_histogram.png           # Solidity distribution
+    │   ├── {image}_morphology_pie.png               # Morphology distribution pie chart
+    │   ├── {image}_boxplot.png                      # Size distribution box plot
+    │   ├── {image}_morphology_histograms.png        # 4-panel morphology breakdown
+    │   ├── {image}_morphology_overlay.{ext}         # Color-coded morphology overlay
+    │   ├── {image}_true_contours.{ext}              # True particle contours
+    │   ├── {image}_circular_equivalent.{ext}        # Circular equivalent contours
+    │   ├── {image}_elliptical_equivalent.{ext}      # Elliptical fit contours
+    │   ├── {image}_all_contour_types.{ext}          # Combined contour comparison
     │   │
     │   └── # Batch Mode Outputs:
     │       ├── batch_boxplot_comparison.png          # Size distribution box plots
@@ -206,6 +215,73 @@ NanoPSD/
 ```
 
 ---
+
+---
+
+## Morphology Classification
+
+NanoPSD classifies nanoparticles into three morphology categories based on shape descriptors:
+
+### Classification Metrics
+
+| Metric | Description | Range |
+|--------|-------------|-------|
+| **Aspect Ratio (AR)** | Ratio of major to minor axis of fitted ellipse | ≥ 1.0 |
+| **Circularity (C)** | `4π × Area / Perimeter²` (1.0 = perfect circle) | 0.0 - 1.0 |
+| **Solidity (S)** | `Area / Convex Hull Area` (1.0 = no concavity) | 0.0 - 1.0 |
+
+### Default Classification Thresholds
+
+| Morphology | Conditions (Priority: Aggregate > Spherical > Rod-like) |
+|------------|----------------------------------------------------------|
+| **Spherical** | AR < 1.5 AND C > 0.75 AND S > 0.90 |
+| **Rod-like** | AR ≥ 1.8 AND S > 0.80 |
+| **Aggregate** | S < 0.85 OR C < 0.60 (fallback for unclassified) |
+
+### Customizing Thresholds
+
+You can adjust classification thresholds using optional CLI flags:
+```bash
+# Customize aspect ratio thresholds (ascending order required)
+python3 nanopsd.py --mode single --input sample.tif --scale-bar-nm 200 \
+    --aspect-ratio 1.4 2.0
+
+# Customize circularity thresholds
+python3 nanopsd.py --mode single --input sample.tif --scale-bar-nm 200 \
+    --circularity 0.55 0.80
+
+# Customize solidity thresholds (3 values: rodlike_min, aggregate_max, spherical_min)
+python3 nanopsd.py --mode single --input sample.tif --scale-bar-nm 200 \
+    --solidity 0.78 0.82 0.92
+
+# Combine multiple threshold customizations
+python3 nanopsd.py --mode single --input sample.tif --scale-bar-nm 200 \
+    --aspect-ratio 1.4 2.0 \
+    --circularity 0.55 0.80 \
+    --solidity 0.78 0.82 0.92
+```
+
+**⚠️ Important Rules:**
+- Values must be in **strict ascending order** (no equal values allowed)
+- Circularity and solidity must be between 0 and 1
+- Aspect ratio must be positive (typically 1.0 - 10.0)
+- If not specified, default values are used
+
+### Output Files
+
+For each image, NanoPSD generates:
+
+**Histograms with statistics:**
+- Diameter distribution (with mean, median, std dev)
+- Aspect ratio distribution
+- Circularity distribution
+- Solidity distribution
+
+**Morphology visualizations:**
+- Pie chart showing morphology percentages
+- Color-coded overlay (green=spherical, blue=rod-like, red=aggregate)
+- 4-panel morphology breakdown by particle type
+
 
 ## Installation & Setup
 
@@ -537,6 +613,12 @@ batch_images/
 | `--nm-per-pixel`    | Direct calibration (nm/pixel). Use for images WITHOUT scale bars. | `--nm-per-pixel 2.5` | One of these* |
 | `--ocr-backend`     | OCR engine: `tesseract`, `easyocr`, or `auto`   | `--ocr-backend tesseract`| No       |
 | `--verify-scale-bar`| Prompt user to verify detected scale            | `--verify-scale-bar`     | No       |
+| `--aspect-ratio`    | Aspect ratio thresholds (2 values, ascending)    | `--aspect-ratio 1.5 1.8` | No       |
+| `--circularity`     | Circularity thresholds (2 values, 0-1, ascending)| `--circularity 0.60 0.75`| No       |
+| `--solidity`        | Solidity thresholds (3 values, 0-1, ascending)   | `--solidity 0.80 0.85 0.90`| No       |
+| `--max-size`        | Maximum particle size (pixels)                   | `--max-size 200`         | No       |
+| `--save-preprocessing-steps` | Save step-by-step preprocessing images | `--save-preprocessing-steps` | No  |
+| `--save-segmentation-steps`  | Save step-by-step segmentation images  | `--save-segmentation-steps`  | No  |
 
 \* **Must provide either `--scale-bar-nm` OR `--nm-per-pixel` (not both)**
 
@@ -583,22 +665,69 @@ Particle_ID, Diameter_nm
 
 NanoPSD automatically classifies particles into three morphological categories based on shape analysis.
 
-### Classification Categories
+### Default Classification Thresholds
 
-| Type | Description | Criteria |
-|------|-------------|----------|
-| **Spherical** | Round, compact particles | Aspect ratio < 1.5, Circularity > 0.75, Solidity > 0.90 |
-| **Rod-like** | Elongated particles | Aspect ratio ≥ 1.8, Smooth boundaries (Solidity > 0.80) |
-| **Aggregate** | Clustered or irregular particles | Low solidity < 0.85 or irregular boundaries (Circularity < 0.60) |
+| Type | Description | Default Criteria |
+|------|-------------|------------------|
+| **Spherical** | Round, compact particles | Aspect ratio < 1.5 AND Circularity > 0.75 AND Solidity > 0.90 |
+| **Rod-like** | Elongated particles | Aspect ratio ≥ 1.8 AND Solidity > 0.80 |
+| **Aggregate** | Clustered or irregular particles | Solidity < 0.85 OR Circularity < 0.60 (fallback for unclassified) |
+
+**Classification Priority:** Aggregate > Spherical > Rod-like
 
 ### Shape Metrics
 
-The classification uses four geometric measurements:
+The classification uses the following geometric measurements:
 
-- **Aspect Ratio**: Major axis / Minor axis (elongation measure)
-- **Circularity**: 4π × Area / Perimeter² (1.0 = perfect circle)
-- **Solidity**: Area / Convex Hull Area (1.0 = smooth outline)
-- **Extent**: Area / Bounding Box Area (space filling)
+| Metric | Formula | Range | Description |
+|--------|---------|-------|-------------|
+| **Aspect Ratio (AR)** | Major axis / Minor axis | ≥ 1.0 | Elongation measure (1.0 = circular) |
+| **Circularity (C)** | 4π × Area / Perimeter² | 0.0 - 1.0 | Shape roundness (1.0 = perfect circle) |
+| **Solidity (S)** | Area / Convex Hull Area | 0.0 - 1.0 | Boundary smoothness (1.0 = no concavity) |
+| **Extent** | Area / Bounding Box Area | 0.0 - 1.0 | Space filling (computed but not used in classification) |
+
+**Note:** Extent is computed and saved in output CSV files for user analysis but is not used in the built-in classification algorithm.
+
+### Customizing Classification Thresholds
+
+You can override default thresholds using optional command-line flags:
+
+**Syntax:**
+```bash
+--aspect-ratio [spherical_max] [rodlike_min]
+--circularity [aggregate_max] [spherical_min]
+--solidity [rodlike_min] [aggregate_max] [spherical_min]
+```
+
+**Important Rules:**
+- All values must be in **strict ascending order** (no equal values allowed)
+- Circularity and solidity must be between 0.0 and 1.0
+- Aspect ratio must be positive (typically 1.0 - 10.0)
+- Values cannot be equal (transition gaps are required)
+
+**Examples:**
+```bash
+# Stricter spherical classification
+python3 nanopsd.py --mode single --input sample.tif --scale-bar-nm 200 \
+    --aspect-ratio 1.3 1.9 \
+    --circularity 0.65 0.82 \
+    --solidity 0.82 0.87 0.93
+
+# More lenient rod-like detection
+python3 nanopsd.py --mode single --input sample.tif --scale-bar-nm 200 \
+    --aspect-ratio 1.6 2.2
+
+# Custom thresholds for gold nanospheres
+python3 nanopsd.py --mode single --input gold_np.tif --scale-bar-nm 200 \
+    --circularity 0.70 0.85 \
+    --solidity 0.85 0.88 0.95
+
+# Batch processing with custom thresholds
+python3 nanopsd.py --mode batch --input ./images/ --scale-bar-nm 200 \
+    --aspect-ratio 1.4 2.0 \
+    --circularity 0.55 0.80 \
+    --solidity 0.78 0.82 0.92
+```
 
 ### Visualization
 
@@ -629,13 +758,28 @@ sample_image.tif,147,42.35,12.78,39.21,18.45,89.32,89,32,26
 ```
 
 **3. Visualizations** (in `outputs/figures/`):
-- `{image}_diameter_histogram.png` - Overall size distribution histogram
-- `{image}_morphology_overlay.{ext}` - Color-coded particle contours (Green=Spherical, Blue=Rod-like, Red=Aggregate)
+
+*Size Distribution:*
+- `{image}_diameter_histogram.png` - Size distribution with statistics (mean, median, std dev, min, max)
 - `{image}_boxplot.png` - Box plot showing median, quartiles, and outliers
+
+*Shape Analysis:*
+- `{image}_aspect_ratio_histogram.png` - Aspect ratio distribution with statistics
+- `{image}_circularity_histogram.png` - Circularity distribution with statistics
+- `{image}_solidity_histogram.png` - Solidity distribution with statistics
+
+*Morphology Classification:*
+- `{image}_morphology_pie.png` - Morphology distribution pie chart (percentages and counts)
+- `{image}_morphology_overlay.{ext}` - Color-coded particle contours (Green=Spherical, Blue=Rod-like, Red=Aggregate)
+- `{image}_morphology_histograms.png` - 4-panel morphology breakdown by particle type
+
+*Contour Overlays:*
 - `{image}_true_contours.{ext}` - True detected contours overlay
 - `{image}_circular_equivalent.{ext}` - Circular equivalent diameter overlay
 - `{image}_elliptical_equivalent.{ext}` - Elliptical fit overlay
 - `{image}_all_contour_types.{ext}` - Combined contour visualization (all three types)
+
+**Note:** All histograms include publication-quality statistics boxes with mean (red), median (blue), standard deviation, min, max, and bin width.
 
 **4. LaTeX Summary** (`report.tex`):
 Statistical summary table formatted for direct inclusion in scientific documents.
@@ -843,6 +987,104 @@ python3 nanopsd.py --mode single --input image.tif --algo classical --min-size 3
 
 ---
 
+---
+
+### Problem: Morphology classification seems incorrect
+
+**Diagnosis:** Default thresholds may not suit your specific particle type.
+
+**Solutions:**
+
+1. **Check current defaults:**
+   - Aspect ratio: spherical < 1.5, rod-like ≥ 1.8
+   - Circularity: aggregate < 0.60, spherical > 0.75
+   - Solidity: rod-like > 0.80, aggregate < 0.85, spherical > 0.90
+
+2. **View distribution histograms to understand your particles:**
+```bash
+   # Run analysis first
+   python3 nanopsd.py --mode single --input sample.tif --scale-bar-nm 200
+
+   # Check these output files:
+   # - {image}_aspect_ratio_histogram.png
+   # - {image}_circularity_histogram.png
+   # - {image}_solidity_histogram.png
+```
+   Use these histograms to determine appropriate thresholds for your particles.
+
+3. **Adjust thresholds based on particle type:**
+```bash
+   # For gold nanospheres (stricter spherical)
+   python3 nanopsd.py --mode single --input gold_np.tif --scale-bar-nm 200 \
+       --circularity 0.70 0.85 \
+       --solidity 0.85 0.88 0.95
+
+   # For silver nanorods (more elongated)
+   python3 nanopsd.py --mode single --input silver_nr.tif --scale-bar-nm 200 \
+       --aspect-ratio 1.6 2.5
+
+   # For aggregated particles (lower solidity)
+   python3 nanopsd.py --mode single --input aggregates.tif --scale-bar-nm 200 \
+       --solidity 0.75 0.80 0.88
+```
+
+---
+
+### Problem: Threshold validation error
+
+**Error message examples:**
+```
+ERROR: --aspect-ratio values must be in STRICT ascending order
+ERROR: --circularity values must be between 0 and 1
+ERROR: --solidity values must be in STRICT ascending order
+```
+
+**Common causes and fixes:**
+
+1. **Values not in ascending order:**
+```bash
+   # WRONG - descending order
+   --aspect-ratio 1.8 1.5
+
+   # CORRECT - ascending order
+   --aspect-ratio 1.5 1.8
+```
+
+2. **Equal values (not allowed):**
+```bash
+   # WRONG - equal values
+   --aspect-ratio 1.5 1.5
+   --circularity 0.75 0.75
+
+   # CORRECT - must have gap between values
+   --aspect-ratio 1.5 1.8
+   --circularity 0.60 0.75
+```
+   **Why equal values are rejected:** Transition gaps between morphology types are scientifically standard practice. Equal values would create sharp boundaries with no transition zone.
+
+3. **Out of range values:**
+```bash
+   # WRONG - circularity > 1.0
+   --circularity 0.60 1.2
+
+   # CORRECT - must be 0-1
+   --circularity 0.60 0.80
+```
+
+4. **Solidity requires 3 values in ascending order:**
+```bash
+   # WRONG - only 2 values
+   --solidity 0.80 0.90
+
+   # WRONG - not ascending
+   --solidity 0.90 0.85 0.80
+
+   # CORRECT - 3 values, ascending
+   --solidity 0.80 0.85 0.90
+```
+
+**Remember:** All three morphology flags are optional. If not provided, default values are used.
+
 ## Example Results
 
 - **Raw STEM Image**
@@ -927,4 +1169,4 @@ For questions, bug reports, or feature requests, please open an issue on GitHub.
 
 ---
 
-**Last Updated**: January 2026
+**Last Updated**: February 2026

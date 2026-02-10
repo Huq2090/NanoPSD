@@ -35,6 +35,105 @@ Design Principles:
 import argparse
 
 
+def validate_morphology_thresholds(args):
+    """
+    Validate morphology classification thresholds.
+
+    Performs:
+    - Range checks (0-1 for C and S, positive for AR)
+    - STRICT ascending order checks (no equal values allowed)
+    - Reasonable bounds warnings
+    """
+    import sys
+
+    # Set defaults if not provided
+    aspect_ratio = args.aspect_ratio if args.aspect_ratio else [1.5, 1.8]
+    circularity = args.circularity if args.circularity else [0.60, 0.75]
+    solidity = args.solidity if args.solidity else [0.80, 0.85, 0.90]
+
+    # ==================== ASPECT RATIO VALIDATION ====================
+    if args.aspect_ratio:
+        # Must be positive
+        if any(ar <= 0 for ar in aspect_ratio):
+            print("ERROR: --aspect-ratio values must be positive")
+            print(f"  You provided: {aspect_ratio[0]} {aspect_ratio[1]}")
+            sys.exit(1)
+
+        # Must be STRICTLY ascending (no equal values)
+        if aspect_ratio[0] >= aspect_ratio[1]:
+            print("ERROR: --aspect-ratio values must be in STRICT ascending order")
+            print(f"  You provided: {aspect_ratio[0]} {aspect_ratio[1]}")
+            print(f"  Expected: [spherical_max] < [rodlike_min]")
+            if aspect_ratio[0] == aspect_ratio[1]:
+                print(
+                    f"  Equal values are not allowed (no scientific basis for sharp boundary)"
+                )
+            else:
+                print(
+                    f"  Suggestion: --aspect-ratio {aspect_ratio[1]} {aspect_ratio[0]}"
+                )
+            sys.exit(1)
+
+        # Soft warning for unreasonable values
+        if aspect_ratio[0] < 1.0 or aspect_ratio[1] > 10.0:
+            print(f"WARNING: Aspect ratio values outside typical range (1.0-10.0)")
+            print(f"  You provided: {aspect_ratio[0]} {aspect_ratio[1]}")
+            print(f"  Continuing anyway...")
+
+    # ==================== CIRCULARITY VALIDATION ====================
+    if args.circularity:
+        # Must be in 0-1 range
+        if any(c < 0 or c > 1 for c in circularity):
+            print("ERROR: --circularity values must be between 0 and 1")
+            print(f"  You provided: {circularity[0]} {circularity[1]}")
+            sys.exit(1)
+
+        # Must be STRICTLY ascending (no equal values)
+        if circularity[0] >= circularity[1]:
+            print("ERROR: --circularity values must be in STRICT ascending order")
+            print(f"  You provided: {circularity[0]} {circularity[1]}")
+            print(f"  Expected: [aggregate_max] < [spherical_min]")
+            if circularity[0] == circularity[1]:
+                print(
+                    f"  Equal values are not allowed (no scientific basis for sharp boundary)"
+                )
+            else:
+                print(f"  Suggestion: --circularity {circularity[1]} {circularity[0]}")
+            sys.exit(1)
+
+    # ==================== SOLIDITY VALIDATION ====================
+    if args.solidity:
+        # Must be in 0-1 range
+        if any(s < 0 or s > 1 for s in solidity):
+            print("ERROR: --solidity values must be between 0 and 1")
+            print(f"  You provided: {solidity[0]} {solidity[1]} {solidity[2]}")
+            sys.exit(1)
+
+        # Must be STRICTLY ascending (no equal values)
+        if not (solidity[0] < solidity[1] < solidity[2]):
+            print("ERROR: --solidity values must be in STRICT ascending order")
+            print(f"  You provided: {solidity[0]} {solidity[1]} {solidity[2]}")
+            print(f"  Expected: [rodlike_min] < [aggregate_max] < [spherical_min]")
+            if solidity[0] == solidity[1] or solidity[1] == solidity[2]:
+                print(
+                    f"  Equal values are not allowed (different morphologies need different thresholds)"
+                )
+            elif solidity[0] > solidity[1] or solidity[1] > solidity[2]:
+                print(f"  Values must satisfy: value1 < value2 < value3")
+            sys.exit(1)
+
+    # Return validated or default values
+    return {
+        "spherical_ar_max": aspect_ratio[0],
+        "rodlike_ar_min": aspect_ratio[1],
+        "aggregate_c_max": circularity[0],
+        "spherical_c_min": circularity[1],
+        "rodlike_s_min": solidity[0],
+        "aggregate_s_max": solidity[1],
+        "spherical_s_min": solidity[2],
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     """
     Construct the argument parser with all NanoPSD command-line options.
@@ -274,6 +373,55 @@ def build_parser() -> argparse.ArgumentParser:
             "  3. After large object removal (max-size filter, if used)\n"
             "  4. After hole filling\n"
             "  5. Labeled components (color-coded particles)"
+        ),
+    )
+
+    # ============================================================================
+    # Optional: Morphology Classification Thresholds
+    # ============================================================================
+    p.add_argument(
+        "--aspect-ratio",
+        type=float,
+        nargs=2,
+        default=None,
+        metavar=("SPHERICAL_MAX", "RODLIKE_MIN"),
+        help=(
+            "Aspect ratio thresholds (default: 1.5 1.8)\n"
+            "  [1] Spherical maximum (lower value)\n"
+            "  [2] Rod-like minimum (higher value)\n"
+            "Values must be in ascending order.\n"
+            "Example: --aspect-ratio 1.4 2.0"
+        ),
+    )
+
+    p.add_argument(
+        "--circularity",
+        type=float,
+        nargs=2,
+        default=None,
+        metavar=("AGGREGATE_MAX", "SPHERICAL_MIN"),
+        help=(
+            "Circularity thresholds (default: 0.60 0.75)\n"
+            "  [1] Aggregate maximum (lower value)\n"
+            "  [2] Spherical minimum (higher value)\n"
+            "Values must be in ascending order (0-1 range).\n"
+            "Example: --circularity 0.55 0.80"
+        ),
+    )
+
+    p.add_argument(
+        "--solidity",
+        type=float,
+        nargs=3,
+        default=None,
+        metavar=("RODLIKE_MIN", "AGGREGATE_MAX", "SPHERICAL_MIN"),
+        help=(
+            "Solidity thresholds (default: 0.80 0.85 0.90)\n"
+            "  [1] Rod-like minimum (lowest value)\n"
+            "  [2] Aggregate maximum (middle value)\n"
+            "  [3] Spherical minimum (highest value)\n"
+            "Values must be in ascending order (0-1 range).\n"
+            "Example: --solidity 0.78 0.82 0.92"
         ),
     )
 

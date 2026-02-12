@@ -301,36 +301,30 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--ocr-backend",
         default=None,
-        choices=["auto", "tesseract", "easyocr"],
+        choices=["easyocr-auto", "easyocr-cpu"],
         metavar="BACKEND",
         help=(
-            "Enable automatic scale bar detection using OCR:\n"
+            "Enable automatic scale bar detection using EasyOCR:\n"
             "\n"
             "Backend Options:\n"
-            "  'auto':      Try EasyOCR first, fallback to Tesseract (recommended)\n"
-            "               Maximizes detection success rate\n"
+            "  'easyocr-auto': Auto-detect GPU, fallback to CPU (recommended)\n"
+            "                  + Uses GPU if CUDA available\n"
+            "                  + Automatically falls back to CPU if no GPU\n"
+            "                  + Best for most users\n"
             "\n"
-            "  'tesseract': Traditional OCR (CPU-friendly)\n"
-            "               + Faster (~0.1 seconds per image)\n"
-            "               + Good for high-contrast, horizontal text\n"
-            "               - Less accurate for rotated/skewed text\n"
-            "               Requires: sudo apt-get install tesseract-ocr\n"
-            "                        pip install pytesseract\n"
+            "  'easyocr-cpu':  Force CPU-only processing\n"
+            "                  + Slower but works on any system\n"
+            "                  + Use when GPU is unavailable or causing issues\n"
+            "                  + WARNING: Slower than GPU (1-2 seconds vs milliseconds)\n"
             "\n"
-            "  'easyocr':   Deep learning OCR (GPU recommended)\n"
-            "               + Most accurate for microscopy images\n"
-            "               + Handles rotated/skewed text automatically\n"
-            "               + Works with complex backgrounds\n"
-            "               - Slower (1-2 seconds per image)\n"
-            "               - WARNING: Very slow on CPU (hours vs seconds)\n"
-            "               Requires: pip install easyocr torch torchvision\n"
+            "Requirements:\n"
+            "  pip install easyocr torch torchvision\n"
             "\n"
             "Examples:\n"
-            "  --ocr-backend auto        # Auto-detect with EasyOCR first\n"
-            "  --ocr-backend tesseract    # Auto-detect with Tesseract\n"
-            "  --ocr-backend easyocr      # Auto-detect with EasyOCR\n"
+            "  --ocr-backend easyocr-auto  # Auto-detect GPU (recommended)\n"
+            "  --ocr-backend easyocr-cpu   # Force CPU\n"
             "\n"
-            "Note: Cannot be used together with --scale-bar-nm or --nm-per-pixel.\n"
+            "Note: Cannot be used with --scale-bar-nm or --nm-per-pixel.\n"
             "      Choose ONE calibration method only."
         ),
     )
@@ -450,7 +444,7 @@ def parse_args():
             "\n"
             "Examples:\n"
             "  python3 nanopsd.py --input image.tif --scale-bar-nm 200 --min-size 3\n"
-            "  python3 nanopsd.py --input image.tif --ocr-backend tesseract --min-size 3\n"
+            "  python3 nanopsd.py --input image.tif --ocr-backend easyocr-auto --min-size 3\n"
             "  python3 nanopsd.py --input image.tif --nm-per-pixel 2.5 --min-size 3"
         )
 

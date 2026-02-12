@@ -48,27 +48,17 @@ The processing workflow follows these main steps:
 - `pandas` (≥1.3.0)
 - `Pillow` (≥8.3.0)
 
-### OCR Dependencies (Optional - only needed for automatic detection of the text mentioning scale bar size)
+### OCR Dependencies (Optional - only needed for automatic scale bar text detection)
 
-**Option 1: Tesseract (Recommended for CPU systems)**
-```bash
-# System installation required first
-sudo apt-get install tesseract-ocr  # Ubuntu/Debian
-brew install tesseract              # macOS
-# Windows: Download from https://github.com/UB-Mannheim/tesseract/wiki
-
-# Then install Python wrapper
-pip install pytesseract
-```
-
-**Option 2: EasyOCR (Requires GPU for good performance)**
+**EasyOCR (Supports both CPU and GPU)**
 ```bash
 pip install easyocr torch torchvision
-# Note: Very slow on CPU (hours vs. seconds). Only use with CUDA GPU.
+# GPU (CUDA): Fast performance (milliseconds)
+# CPU: Slower but functional (1-2 seconds per image)
 ```
 
-**Option 3: Skip OCR entirely (Recommended)**
-Provide `--scale-bar-nm` parameter to the CLI manually. This is the fastest and most reliable method.
+**Skip OCR entirely (Recommended)**
+Provide `--scale-bar-nm` parameter manually. This is the fastest and most reliable method.
 
 ---
 
@@ -115,7 +105,7 @@ NanoPSD/
 │
 ├── utils/                     # Helper utilities
 │   ├── __init__.py
-│   ├── ocr.py                 # OCR for scale bar text (EasyOCR/Tesseract)
+│   ├── ocr.py                 # OCR for scale bar text (EasyOCR)
 │   └── scale_bar.py           # Scale bar detection (hybrid)
 │
 ├── docs/                      # Documentation & assets
@@ -198,7 +188,7 @@ NanoPSD/
 │
 ├── Scale Bar Detection:
 │   ├── scale_bar.py        # Geometric detection
-│   └── ocr.py              # Text recognition (Tesseract/EasyOCR)
+│   └── ocr.py              # Text recognition (EasyOCR)
 │
 ├── Segmentation:
 │   ├── base.py             # Abstract interface
@@ -317,17 +307,7 @@ conda activate imglab
 ### 5. (Optional) Install OCR dependencies
 Only if you want automatic scale detection:
 
-**For CPU systems (Tesseract):**
-```bash
-# System installation
-sudo apt-get install tesseract-ocr  # Ubuntu/Debian
-brew install tesseract              # macOS
-
-# Python wrapper
-pip install pytesseract
-```
-
-**For GPU systems (EasyOCR):**
+**Install EasyOCR:**
 ```bash
 pip install easyocr torch torchvision
 ```
@@ -471,20 +451,17 @@ python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --m
 Use `--ocr-backend` flag to enable automatic scale bar detection:
 
 ```bash
-# CPU-friendly (Tesseract)
-python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --ocr-backend tesseract
+# CPU-friendly (easyocr-cpu)
+python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --ocr-backend easyocr-cpu
 
-# GPU-accelerated (EasyOCR - requires CUDA)
-python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --ocr-backend easyocr
-
-# Auto selection (Trying EasyOCR First and then Tesseract)
-python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --ocr-backend auto
+# GPU-accelerated (EasyOCR - requires CUDA (fallback to CPU, if GPU is not available))
+python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --ocr-backend easyocr-auto
 
 # With minimum and maximum size filter
-python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 5 --max-size 150 --ocr-backend tesseract
+python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 5 --max-size 150 --ocr-backend easyocr-auto
 
 # With verification prompt
-python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --ocr-backend tesseract --verify-scale-bar
+python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --ocr-backend easyocr-auto --verify-scale-bar
 
 # With step-by-step images for methodology visualization
 python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --max-size 100 --scale-bar-nm 200 --save-preprocessing-steps --save-segmentation-steps
@@ -493,7 +470,7 @@ python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --m
 **Important Notes on Automatic Detection:**
 - Works best with **dark scale bars on light backgrounds**
 - **White or light-colored scale bars often fail** - use manual calculation instead
-- EasyOCR on CPU is extremely slow (hours) - use Tesseract or manual calculation
+- EasyOCR on CPU is relatively slow
 - Manual scale bar size parameter input is always faster and more reliable
 
 ### Method 3: Manual Calibration (For Images Without Scale Bars)
@@ -538,7 +515,7 @@ python3 nanopsd.py --mode single --input no_scalebar.tif --algo classical --min-
 
 **With automatic scale detection:**
 ````bash
-python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --ocr-backend auto
+python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --ocr-backend easyocr-auto
 ````
 
 ### Batch Image Analysis
@@ -551,7 +528,7 @@ Process multiple images in a folder and generate both **individual outputs** for
 python3 nanopsd.py --mode batch --input ./batch_images --algo classical --min-size 3 --scale-bar-nm 200
 
 # With automatic scale detection (each image detected separately)
-python3 nanopsd.py --mode batch --input ./batch_images --algo classical --min-size 3 --ocr-backend auto
+python3 nanopsd.py --mode batch --input ./batch_images --algo classical --min-size 3 --ocr-backend easyocr-auto
 
 # For images without scale bars (known calibration)
 python3 nanopsd.py --mode batch --input ./batch_images --algo classical --min-size 3 --nm-per-pixel 1.8
@@ -583,21 +560,20 @@ batch_images/
 
 ### OCR Backend Options
 
-| Backend     | Hardware      | Speed                            | Accuracy  | Recommended For                       |
-|-------------|---------------|----------------------------------|-----------|---------------------------------------|
-| `tesseract` | CPU only      | Fast                             | Good      | **CPU systems (default)**             |
-| `easyocr`   | GPU preferred | Very fast (GPU) / Very slow (CPU)| Excellent | CUDA GPU systems only                 |
-| `auto`      | Automatic     | Varies                           | Varies    | Tries easyocr, falls back to tesseract|
+| Backend        | Hardware           | Speed                    | Recommended For          |
+|----------------|--------------------|--------------------------|--------------------------|
+| `easyocr-auto` | GPU (fallback CPU) | GPU: Fast, CPU: Moderate | **Most users (default)** |
+| `easyocr-cpu`  | CPU only           | Moderate                 | Systems without GPU      |
+
 
 **Performance Example:**
-- Tesseract: ~2-5 seconds per image
-- EasyOCR (GPU): ~3-8 seconds per image
-- EasyOCR (CPU): ~300-600 seconds per image
+- EasyOCR (GPU): ~8-12 seconds per image
+- EasyOCR (CPU): ~15-25 seconds per image
 
 **Recommendations:**
 - **Best practice**: Input scale bar size manually, skip OCR entirely
-- **CPU-only systems**: Use `--ocr-backend tesseract`
-- **GPU systems (CUDA)**: Use `--ocr-backend easyocr`
+- **CPU-only systems**: Use `--ocr-backend easyocr-cpu`
+- **GPU systems (CUDA)**: Use `--ocr-backend easyocr-auto`
 
 ---
 
@@ -611,7 +587,7 @@ batch_images/
 | `--min-size`        | Minimum particle size (nm)                      | `--min-size 3`           | Yes      |
 | `--scale-bar-nm`    | Scale bar size in nm. Use with images that have scale bars. | `--scale-bar-nm 200` | One of these* |
 | `--nm-per-pixel`    | Direct calibration (nm/pixel). Use for images WITHOUT scale bars. | `--nm-per-pixel 2.5` | One of these* |
-| `--ocr-backend`     | OCR engine: `tesseract`, `easyocr`, or `auto`   | `--ocr-backend tesseract`| No       |
+| `--ocr-backend`     | OCR engine: `easyocr-auto`, or `easyocr-cpu`   | `--ocr-backend easyocr-auto`| No       |
 | `--verify-scale-bar`| Prompt user to verify detected scale            | `--verify-scale-bar`     | No       |
 | `--aspect-ratio`    | Aspect ratio thresholds (2 values, ascending)    | `--aspect-ratio 1.5 1.8` | No       |
 | `--circularity`     | Circularity thresholds (2 values, 0-1, ascending)| `--circularity 0.60 0.75`| No       |
@@ -629,7 +605,7 @@ batch_images/
 | `--algo`            | Segmentation algorithm: `classical`             | `--algo classical`       |
 | `--min-size`        | Minimum particle size (nm)                      | `--min-size 3`           |
 | `--scale-bar-nm`    | Scale bar size in nm                            | `--scale-bar-nm 200`     |
-| `--ocr-backend`     | OCR engine: `tesseract`, `easyocr`, or `auto`   | `--ocr-backend tesseract`|
+| `--ocr-backend`     | OCR engine: `easyocr-auto`, or `easyocr-cpu`    | `--ocr-backend easyocr-auto`|
 | `--verify-scale-bar`| Prompt user to verify detected scale            | `--verify-scale-bar`     | -->
 
 ---
@@ -883,7 +859,7 @@ Aggregate   :  327 ( 86.7%)  Avg:  13.61 nm
 
 2. **Verify detected scale bar**:
    ```bash
-   python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --ocr-backend tesseract --verify-scale-bar
+   python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --ocr-backend easyocr-auto --verify-scale-bar
    ```
    This will prompt you to confirm the detected scale bar.
 
@@ -895,52 +871,18 @@ Aggregate   :  327 ( 86.7%)  Avg:  13.61 nm
 
 **Solutions:**
 
-1. **Switch to Tesseract** (fastest OCR option for CPU):
-   ```bash
-   python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --ocr-backend tesseract
-   ```
-
-2. **Use manual scale bar text input** (no OCR needed):
+1. **Use manual scale bar text input** (no OCR needed):
    ```bash
    python3 nanopsd.py --mode single --input sample_image_1.tif --algo classical --min-size 3 --scale-bar-nm 200
    ```
 
-3. **If you have a GPU**, ensure PyTorch with CUDA is installed:
+2. **If you have a GPU**, ensure PyTorch with CUDA is installed:
    ```bash
    pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
    pip install easyocr
    ```
 
 ---
-
-### Problem: "ModuleNotFoundError: No module named 'pytesseract'"
-
-**Solution**: Install Tesseract OCR engine (system-level) + Python wrapper
-
-**Ubuntu/Debian:**
-```bash
-sudo apt-get install tesseract-ocr
-pip install pytesseract
-```
-
-**macOS:**
-```bash
-brew install tesseract
-pip install pytesseract
-```
-
-**Windows:**
-1. Download installer from: https://github.com/UB-Mannheim/tesseract/wiki
-2. Install to default location (e.g., `C:\Program Files\Tesseract-OCR`)
-3. Add to PATH or set in Python:
-   ```python
-   import pytesseract
-   pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-   ```
-4. Install Python wrapper: `pip install pytesseract`
-
----
-
 ### Problem: Slow performance with large batches
 
 **Solutions:**

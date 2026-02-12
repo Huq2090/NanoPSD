@@ -97,42 +97,37 @@ def show_usage_examples() -> None:
     print("🔍 OCR-BASED SCALE BAR DETECTION")
     print("─" * 80)
 
-    print("\n5️⃣  Auto-detect scale bar with Tesseract (CPU, fast):")
+    print("\n5️⃣  Auto-detect with GPU (with CPU fallback option):")
     print("   python3 nanopsd.py --mode single --input sample.tif \\")
-    print("                      --ocr-backend tesseract \\")
+    print("                      --scale-bar-nm -1 --ocr-backend easyocr-auto \\")
     print("                      --algo classical --min-size 3")
 
-    print("\n6️⃣  Auto-detect scale bar with EasyOCR (GPU, accurate):")
+    print("\n6️⃣  Auto-detect scale bar with EasyOCR (CPU forced):")
     print("   python3 nanopsd.py --mode single --input sample.tif \\")
-    print("                      --scale-bar-nm -1 --ocr-backend easyocr \\")
-    print("                      --algo classical --min-size 3")
-
-    print("\n7️⃣  Auto-detect with fallback (try EasyOCR, then Tesseract):")
-    print("   python3 nanopsd.py --mode single --input sample.tif \\")
-    print("                      --scale-bar-nm -1 --ocr-backend auto \\")
+    print("                      --scale-bar-nm -1 --ocr-backend easyocr-cpu \\")
     print("                      --algo classical --min-size 3")
 
     print("\n" + "─" * 80)
     print("✅ SCALE BAR VERIFICATION")
     print("─" * 80)
 
-    print("\n8️⃣  Manual verification of detected scale bar:")
+    print("\n7️⃣  Manual verification of detected scale bar:")
     print("   python3 nanopsd.py --mode single --input sample.tif \\")
-    print("                      --scale-bar-nm -1 --ocr-backend tesseract \\")
+    print("                      --ocr-backend easyocr-auto \\")
     print("                      --verify-scale-bar --algo classical --min-size 3")
 
     print("\n" + "─" * 80)
     print("📊 BATCH PROCESSING EXAMPLES")
     print("─" * 80)
 
-    print("\n9️⃣  Batch with auto-detection (each image detected separately):")
+    print("\n8️⃣  Batch with auto-detection (each image detected separately):")
     print("   python3 nanopsd.py --mode batch --input ./images/ \\")
-    print("                      --scale-bar-nm -1 --ocr-backend tesseract \\")
+    print("                      --ocr-backend easyocr-auto \\")
     print("                      --algo classical --min-size 5")
 
-    print("\n🔟 Batch with verification prompts:")
+    print("\n9️⃣ Batch with verification prompts:")
     print("   python3 nanopsd.py --mode batch --input ./images/ \\")
-    print("                      --scale-bar-nm -1 --ocr-backend tesseract \\")
+    print("                      --ocr-backend easyocr-auto \\")
     print("                      --verify-scale-bar --algo classical --min-size 3")
 
     print("\n" + "─" * 80)
@@ -145,7 +140,9 @@ def show_usage_examples() -> None:
     print("  --nm-per-pixel      : Direct calibration (for images without scale bars)")
     print("  --algo              : Segmentation algorithm (currently: 'classical')")
     print("  --min-size          : Minimum particle size in pixels (e.g., 3, 5)")
-    print("  --ocr-backend       : 'tesseract' (CPU), 'easyocr' (GPU), or 'auto'")
+    print(
+        "  --ocr-backend       : 'easyocr-auto' (default - Try GPU and fall back to GPU) or 'easyocr-cpu' (force CPU)"
+    )
     print("  --verify-scale-bar  : Enable manual verification of scale detection")
 
     print("\n" + "─" * 80)
@@ -154,8 +151,8 @@ def show_usage_examples() -> None:
 
     print("\n  • Fastest: Use --scale-bar-nm with known value (no OCR)")
     print("  • No scale bar: Use --nm-per-pixel with calibration factor")
-    print("  • CPU systems: Use --ocr-backend tesseract")
-    print("  • GPU systems: Use --ocr-backend easyocr")
+    print("  • CPU systems: Use --ocr-backend easyocr-cpu")
+    print("  • GPU systems: Use --ocr-backend easyocr-auto")
     print("  • Uncertain detection: Add --verify-scale-bar flag")
     print(
         "  • Batch mode: All images must have same calibration if using --nm-per-pixel"
@@ -256,7 +253,7 @@ def main() -> None:
         min_size_px=args.min_size,  # Minimum particle size filter (pixels)
         max_size_px=args.max_size,  # Maximum particle size filter (pixels)
         # OCR configuration
-        ocr_backend=args.ocr_backend,  # "auto", "easyocr", or "tesseract"
+        ocr_backend=args.ocr_backend,  # "easyocr-auto" or "easyocr-cpu"
         verify_scale_bar=args.verify_scale_bar,  # Enable manual verification of scale detection
         save_preprocessing_steps=args.save_preprocessing_steps,
         save_segmentation_steps=args.save_segmentation_steps,

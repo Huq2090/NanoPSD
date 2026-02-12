@@ -103,7 +103,7 @@ class NanoparticleAnalyzer:
         Segmentation mode: "classical", "ai", "both", "compare"
         Currently only "classical" is implemented
     ocr_backend : str
-        OCR engine selection: "auto", "easyocr", or "tesseract"
+        OCR engine selection: "easyocr-auto" or "easyocr-cpu"
     segmenter : BaseSegmenter
         Segmentation strategy object (currently OtsuSegmenter)
 
@@ -123,7 +123,7 @@ class NanoparticleAnalyzer:
     ...     image_path="./images/",
     ...     scale_bar_nm=-1,  # Use OCR
     ...     batch=True,
-    ...     ocr_backend="easyocr"
+    ...     ocr_backend="easyocr-auto"
     ... )
     >>> analyzer.run()
     """
@@ -137,7 +137,7 @@ class NanoparticleAnalyzer:
         min_size_px: int = 3,
         max_size_px: int = None,
         mode: str = "classical",
-        ocr_backend: str = "auto",
+        ocr_backend: str = "easyocr-auto",
         verify_scale_bar: bool = False,
         nm_per_pixel: float = None,  # Adding capability to directly input nm_per_pixel
         save_preprocessing_steps: bool = False,
@@ -201,12 +201,11 @@ class NanoparticleAnalyzer:
             - "compare": Run both and compare (not implemented yet)
 
         ocr_backend : str, optional
-            OCR engine for scale bar text reading (default: "auto")
-            Only used when scale_bar_nm=-1
+            OCR backend for scale bar text reading (default: "easyocr-auto")
+            Only used when --ocr-backend flag is provided
             Options:
-            - "auto": try EasyOCR first, fall back to Tesseract
-            - "easyocr": use only EasyOCR (most accurate)
-            - "tesseract": use only Tesseract (faster but less accurate)
+            - "easyocr-auto": Auto-detect GPU, fallback to CPU (recommended)
+            - "easyocr-cpu": Force CPU-only processing (useful if GPU causes issues)
 
         Raises
         ------
@@ -406,7 +405,7 @@ class NanoparticleAnalyzer:
         2. Determine physical scale:
         - If user provided --scale-bar-nm N: use N
         - If user do not provided --scale-bar-nm: look for --ocr-backend options
-        - OCR uses the specified backend (auto/easyocr/tesseract)
+        - OCR uses the specified backend (easyocr-auto/easyocr-cpu)
         3. Compute nm-per-pixel calibration factor
         4. Preprocess image (CLAHE + threshold → binary mask)
         5. Mask out scale bar region (prevent it being counted as particle)

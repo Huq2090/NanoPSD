@@ -25,23 +25,21 @@ specifically tuned for reading scale bar annotations in microscopy images.
 
 Key Features:
 -------------
-- Supports both Tesseract and EasyOCR backends with user selection
+- EasyOCR backend with GPU/CPU control
 - Handles various text formats: "50 nm", "0.2 µm", "100nm", etc.
 - Automatic unit conversion (µm → nm)
 - Multiple preprocessing strategies to handle different image qualities
-- Graceful degradation if OCR backends aren't installed
 
 Design Philosophy:
 ------------------
-OCR is OPTIONAL. If backends aren't available, the pipeline still works
-by falling back to CLI --scale parameter or filename parsing.
+OCR is OPTIONAL. If EasyOCR isn't available, the pipeline still works
+by falling back to CLI --scale-bar-nm parameter or filename parsing.
 
 Backend Selection:
 ------------------
-Users can choose OCR engine via --ocr-backend flag:
-- "auto" (default): Try EasyOCR first, fall back to Tesseract
-- "easyocr": Use only EasyOCR (recommended for microscopy images)
-- "tesseract": Use only Tesseract (faster but less accurate)
+Users can choose OCR mode via --ocr-backend flag:
+- "easyocr-auto" (default): Auto-detect GPU, fallback to CPU
+- "easyocr-cpu": Force CPU-only processing
 """
 
 import re
@@ -57,21 +55,14 @@ import torch
 # Detect which OCR engines are installed on this system.
 # This allows the code to work even if one or both backends are missing.
 
-_BACKENDS = []  # List of available backend names
-
-try:
-    import pytesseract
-
-    _BACKENDS.append("tesseract")
-except ImportError:
-    pass  # Tesseract not installed, continue without it
+_EASYOCR_AVAILABLE = False
 
 try:
     import easyocr
 
-    _BACKENDS.append("easyocr")
+    _EASYOCR_AVAILABLE = True
 except ImportError:
-    pass  # EasyOCR not installed, continue without it
+    pass  # EasyOCR not installed
 
 
 def clear_gpu_memory():
@@ -326,85 +317,16 @@ def _preprocess_for_ocr(image: np.ndarray, strategy: str) -> np.ndarray:
     return img
 
 
-def _deskew(image: np.ndarray) -> np.ndarray:
-    """
-    Correct text skew/rotation for improved OCR accuracy.
-
-    Why Deskewing Matters:
-    ----------------------
-    OCR accuracy drops significantly when text is rotated. Even 5-10 degree
-    angles can reduce recognition rate by 50% or more. This function detects
-    and corrects the rotation.
-
-    Algorithm:
-    ----------
-    1. Find all foreground (white) pixels (the text)
-    2. Fit minimum area rectangle around them
-    3. Extract rotation angle from rectangle orientation
-    4. Rotate image to make text horizontal
-
-    Parameters
-    ----------
-    image : np.ndarray
-        Binary image with text (0 = background, >0 = text)
-
-    Returns
-    -------
-    deskewed : np.ndarray
-        Rotated image with horizontal text
-
-    Notes
-    -----
-    - Only rotates if angle > 0.5 degrees (avoid unnecessary interpolation)
-    - Uses high-quality cubic interpolation to minimize artifacts
-    - Replicates borders to avoid black edges after rotation
-    """
-    # Find coordinates of all foreground pixels
-    # np.where returns (rows, cols) of all pixels where condition is True
-    coords = np.column_stack(np.where(image > 0))
-
-    if len(coords) < 5:
-        # Not enough pixels to reliably estimate angle
-        # Need at least 5 points to fit a rectangle
-        return image
-
-    # Fit minimum area rectangle to the text pixels
-    # This gives us the dominant orientation of the text
-    # Returns: ((center_x, center_y), (width, height), angle)
-    angle = cv2.minAreaRect(coords)[-1]
-
-    # OpenCV's minAreaRect returns angle in range [-90, 0)
-    # We need to correct it to [-45, 45) for proper text orientation
-    if angle < -45:
-        angle = 90 + angle
-
-    # Only rotate if skew is significant
-    # Small rotations introduce interpolation artifacts without much benefit
-    if abs(angle) > 0.5:
-        (h, w) = image.shape[:2]
-        center = (w // 2, h // 2)
-
-        # Compute 2D rotation matrix
-        # Parameters: center point, angle (counterclockwise), scale
-        M = cv2.getRotationMatrix2D(center, angle, 1.0)
-
-        # Apply rotation
-        # INTER_CUBIC: high-quality interpolation (slower but better quality)
-        # BORDER_REPLICATE: extend edge pixels to avoid black borders
-        image = cv2.warpAffine(
-            image, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE
-        )
-
-    return image
-
-
 # =============================================================================
 # Main OCR Interface
 # =============================================================================
 
 
 def ocr_read_number(
-    image, lang_hint: str = "en", debug_dir: Optional[str] = None, backend: str = "auto"
+    image: np.ndarray,
+    lang_hint: str = "en",
+    debug_dir: Optional[str] = None,
+    backend: str = "easyocr-auto",
 ) -> Optional[str]:
     """
     Perform OCR using selected backend with multiple preprocessing attempts.
@@ -414,15 +336,12 @@ def ocr_read_number(
 
     Overall Strategy:
     -----------------
-    1. Validate backend selection
-    2. Try EasyOCR first (if auto or explicitly requested)
-    3. Fall back to Tesseract (if auto or explicitly requested)
-    4. For each backend, systematically try:
+    1. Validate backend selection (easyocr-auto or easyocr-cpu)
+    2. Initialize EasyOCR with appropriate GPU/CPU setting
+    3. Systematically try:
        - Normal and inverted images (black-on-white vs white-on-black)
-       - Multiple preprocessing strategies (5 methods)
-       - Deskewing (Tesseract only, EasyOCR handles rotation internally)
-       - Multiple PSM modes (Tesseract only)
-    5. Return immediately on first success (no need to try all combinations)
+       - Multiple preprocessing strategies (basic, adaptive, morph)
+    4. Return immediately on first successful OCR that contains digits
 
     Parameters
     ----------
@@ -435,25 +354,11 @@ def ocr_read_number(
         If provided, save all preprocessing attempts to this folder
         Useful for debugging OCR failures
         Each saved image shows: backend_invert_strategy.png
+
     backend : str, optional
-        OCR backend selection:
-
-        "auto" (default): Try EasyOCR first, fall back to Tesseract
-            - Best for most users
-            - Maximizes success rate
-            - Slightly slower (tries both if first fails)
-
-        "easyocr": Use only EasyOCR
-            - Most accurate for microscopy images
-            - Handles rotated text automatically
-            - Slower than Tesseract
-            - Requires: pip install easyocr
-
-        "tesseract": Use only Tesseract
-            - Faster than EasyOCR
-            - Good for high-contrast, horizontal text
-            - Less accurate for complex backgrounds
-            - Requires: apt-get install tesseract-ocr (+ pytesseract)
+        OCR backend selection (default: "easyocr-auto")
+        - "easyocr-auto": Auto-detect GPU, fallback to CPU
+        - "easyocr-cpu": Force CPU-only processing
 
     Returns
     -------
@@ -480,171 +385,107 @@ def ocr_read_number(
     # Step 1: Validate prerequisites and backend selection
     # -------------------------------------------------------------------------
 
-    if not _BACKENDS:
-        # No OCR backend installed at all
-        print("⚠ No OCR backends available")
-        print("  Install EasyOCR: pip install easyocr")
-        print(
-            "  Install Tesseract: apt-get install tesseract-ocr && pip install pytesseract"
-        )
+    if not _EASYOCR_AVAILABLE:
+        print("⚠ EasyOCR not available")
+        print("  Install: pip install easyocr torch torchvision")
         return None
 
     # Validate backend parameter
-    if backend not in ["auto", "easyocr", "tesseract"]:
-        print(f"⚠ Invalid backend '{backend}', using 'auto'")
-        backend = "auto"
-
-    # Check if requested backend is actually available
-    if backend == "easyocr" and "easyocr" not in _BACKENDS:
-        print("⚠ EasyOCR requested but not installed")
-        print("  Trying Tesseract instead")
-        backend = "tesseract"
-    elif backend == "tesseract" and "tesseract" not in _BACKENDS:
-        print("⚠ Tesseract requested but not installed")
-        print("  Trying EasyOCR instead")
-        backend = "easyocr"
+    if backend not in ["easyocr-auto", "easyocr-cpu"]:
+        print(f"⚠ Invalid backend '{backend}', using 'easyocr-auto'")
+        backend = "easyocr-auto"
 
     # -------------------------------------------------------------------------
-    # Step 2: Define strategies and parameters
+    # Step 2: Initialize EasyOCR with proper GPU/CPU settings
     # -------------------------------------------------------------------------
 
-    # Preprocessing strategies (in order of speed: fast → slow)
-    strategies = ["basic", "adaptive", "morph", "denoise", "sharpen"]
+    try:
+        import easyocr
 
-    # Tesseract Page Segmentation Modes (PSM)
-    # Different modes assume different text layouts
-    psm_modes = [
-        7,  # Single text line (best for scale bars - horizontal text)
-        8,  # Single word (if text is just "200nm" with no spaces)
-        6,  # Uniform block of text (fallback for multi-line)
-        13,  # Raw line without layout analysis (last resort)
-    ]
+        print("  → Using EasyOCR...")
 
-    # -------------------------------------------------------------------------
-    # Step 3: Try EasyOCR (if auto or explicitly requested)
-    # -------------------------------------------------------------------------
+        # Clear GPU memory before starting
+        clear_gpu_memory()
 
-    if (backend == "auto" or backend == "easyocr") and "easyocr" in _BACKENDS:
+        # Determine GPU usage based on backend choice
+        use_gpu = False
+
+        if backend == "easyocr-cpu":
+            # Force CPU mode
+            print("    → Mode: CPU (forced)")
+            use_gpu = False
+
+        elif backend == "easyocr-auto":
+            # Auto-detect: try GPU first, fallback to CPU
+            if torch.cuda.is_available():
+                print("    → Mode: GPU (auto-detected)")
+                use_gpu = True
+            else:
+                print("    → Mode: CPU (no GPU available)")
+                use_gpu = False
+
+        # Initialize EasyOCR reader
+        reader = None
         try:
-            import easyocr
+            reader = easyocr.Reader([lang_hint], gpu=use_gpu, verbose=False)
 
-            print("  → Trying EasyOCR...")
+            # Confirm actual usage
+            if use_gpu and torch.cuda.is_available():
+                print("    ✓ EasyOCR initialized with GPU")
+            else:
+                print("    ✓ EasyOCR initialized with CPU")
 
-            # Clear GPU memory before starting
-            clear_gpu_memory()
+        except RuntimeError as e:
+            if "out of memory" in str(e).lower() and use_gpu:
+                print("    ⚠ GPU OOM, falling back to CPU")
+                clear_gpu_memory()
+                reader = easyocr.Reader([lang_hint], gpu=False, verbose=False)
+                print("    ✓ EasyOCR initialized with CPU (fallback)")
+            else:
+                raise
 
-            # Try GPU first, fallback to CPU if OOM
-            reader = None
-            try:
-                reader = easyocr.Reader([lang_hint], gpu=True, verbose=False)
-                print("    → Using GPU")
-            except RuntimeError as e:
-                if "out of memory" in str(e).lower():
-                    print("    → GPU OOM, using CPU instead")
-                    clear_gpu_memory()
-                    reader = easyocr.Reader([lang_hint], gpu=False, verbose=False)
-                else:
-                    raise
+        # -------------------------------------------------------------------------
+        # Step 3: Try OCR with different preprocessing strategies
+        # -------------------------------------------------------------------------
 
-            # Try both polarities
-            for invert in [False, True]:
-                img = image if not invert else (255 - image)
+        # Preprocessing strategies (in order of speed: fast → slow)
+        strategies = ["basic", "adaptive", "morph"]
 
-                for strategy in ["basic", "adaptive", "morph"]:
-                    processed = _preprocess_for_ocr(img, strategy)
+        # Try both polarities (normal and inverted)
+        for invert in [False, True]:
+            img = image if not invert else (255 - image)
 
-                    if debug_dir:
-                        import os
+            for strategy in strategies:
+                processed = _preprocess_for_ocr(img, strategy)
 
-                        os.makedirs(debug_dir, exist_ok=True)
-                        tag = f"easyocr_inv{int(invert)}_{strategy}"
-                        cv2.imwrite(f"{debug_dir}/prep_{tag}.png", processed)
+                if debug_dir:
+                    import os
 
-                    results = reader.readtext(processed, detail=0)
+                    os.makedirs(debug_dir, exist_ok=True)
+                    tag = f"easyocr_inv{int(invert)}_{strategy}"
+                    cv2.imwrite(f"{debug_dir}/prep_{tag}.png", processed)
 
-                    if results:
-                        txt = " ".join(results).strip()
+                results = reader.readtext(processed, detail=0)
 
-                        if txt and any(c.isdigit() for c in txt):
-                            print(f"    ✓ EasyOCR success: '{txt}'")
-                            clear_gpu_memory()  # Clean up before returning
-                            return txt
+                if results:
+                    txt = " ".join(results).strip()
 
-            # Clean up if no results
-            clear_gpu_memory()
+                    if txt and any(c.isdigit() for c in txt):
+                        print(f"    ✓ EasyOCR success: '{txt}'")
+                        clear_gpu_memory()  # Clean up before returning
+                        return txt
 
-        except Exception as e:
-            print(f"    ✗ EasyOCR error: {e}")
-            clear_gpu_memory()
-            if backend == "easyocr":
-                return None
+        # Clean up if no results
+        clear_gpu_memory()
+        print("    ✗ EasyOCR failed to detect text")
 
-    # -------------------------------------------------------------------------
-    # Step 4: Try Tesseract (if auto or explicitly requested)
-    # -------------------------------------------------------------------------
-
-    if (backend == "auto" or backend == "tesseract") and "tesseract" in _BACKENDS:
-        try:
-            import pytesseract
-
-            print("  → Trying Tesseract...")
-
-            # Try both polarities
-            for invert in [False, True]:
-                img = image if not invert else (255 - image)
-
-                # Pre-compute deskewed version
-                # Tesseract is sensitive to rotation, so correct it upfront
-                img_deskewed = _deskew(img.copy())
-
-                # Try all preprocessing strategies
-                for strategy in strategies:
-                    # Try both with and without deskewing
-                    for use_deskew in [False, True]:
-                        test_img = img_deskewed if use_deskew else img
-                        processed = _preprocess_for_ocr(test_img, strategy)
-
-                        # Save debug image if requested
-                        if debug_dir:
-                            import os
-
-                            os.makedirs(debug_dir, exist_ok=True)
-                            tag = f"tess_inv{int(invert)}_desk{int(use_deskew)}_{strategy}"
-                            cv2.imwrite(f"{debug_dir}/prep_{tag}.png", processed)
-
-                        # Try multiple PSM modes
-                        for psm in psm_modes:
-                            try:
-                                # Configure Tesseract
-                                config = (
-                                    f"--oem 3 "  # OCR Engine Mode 3: Default (LSTM)
-                                    f"--psm {psm} "  # Page segmentation mode
-                                    "-c tessedit_char_whitelist=0123456789nmµuUM.NM "
-                                    # Whitelist: only recognize these characters
-                                    # Significantly improves accuracy by rejecting impossible chars
-                                )
-
-                                # Run Tesseract OCR
-                                txt = pytesseract.image_to_string(
-                                    processed, config=config, lang=lang_hint
-                                ).strip()
-
-                                # Validate: must contain digit
-                                if txt and any(c.isdigit() for c in txt):
-                                    print(f"    ✓ Tesseract success: '{txt}'")
-                                    return txt
-
-                            except Exception:
-                                # This particular PSM mode failed
-                                # Try next mode
-                                continue
-
-        except Exception as e:
-            print(f"    ✗ Tesseract error: {e}")
+    except Exception as e:
+        print(f"    ✗ EasyOCR error: {e}")
+        clear_gpu_memory()
 
     # -------------------------------------------------------------------------
-    # Step 5: All attempts exhausted
+    # Step 4: All attempts exhausted
     # -------------------------------------------------------------------------
 
-    print("    ✗ All OCR attempts failed")
+    print("    ✗ OCR failed")
     return None

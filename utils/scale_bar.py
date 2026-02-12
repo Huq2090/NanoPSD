@@ -605,7 +605,7 @@ def detect_scale_label(
     bar_bbox: Tuple[int, int, int, int],
     save_debug: bool = True,
     debug_dir: str = "outputs/figures",
-    ocr_backend: str = "auto",  # NEW: Backend selection parameter
+    ocr_backend: str = "easyocr-auto",  # NEW: Backend selection parameter
 ) -> Tuple[Optional[float], Optional[Tuple[int, int, int, int]]]:
     """
     Read scale bar text using OCR and convert to nanometers.
@@ -632,7 +632,7 @@ def detect_scale_label(
     debug_dir : str, default="outputs/figures"
         Folder for debug output
     ocr_backend : str, default="auto"
-        OCR engine to use: "auto", "easyocr", or "tesseract"
+        OCR engine to use: "easyocr-auto" or "easyocr-cpu"
 
     Returns
     -------

@@ -21,7 +21,7 @@
 NanoPSD - Main Entry Point
 ===========================
 
-This is the primary entry point for the NanoPSD (Nanoparticle Size Distribution)
+This is the primary entry point for the NanoPSD (Nano-Particle Shape Distribution)
 analysis pipeline. It orchestrates the complete workflow from image input to
 final statistical output.
 
@@ -48,11 +48,11 @@ Usage Examples:
 # Single image with manual scale
 python3 main.py --mode single --input sample.tif --scale 200 --algo classical --min-size 3
 
-# Single image with automatic OCR detection (EasyOCR)
-python3 main.py --mode single --input sample.tif --scale -1 --algo classical --min-size 3 --ocr-backend easyocr
+# Single image with automatic OCR detection 
+python3 main.py --mode single --input sample.tif --scale -1 --algo classical --min-size 3 --ocr-backend easyocr-auto
 
 # Batch processing with auto OCR
-python3 main.py --mode batch --input ./images/ --scale -1 --algo classical --min-size 5 --ocr-backend auto
+python3 main.py --mode batch --input ./images/ --scale -1 --algo classical --min-size 5 --ocr-backend easyocr-auto
 
 For detailed help:
 python3 main.py --help
@@ -68,7 +68,7 @@ def show_usage_examples() -> None:
     Display comprehensive usage examples when script is run without arguments.
     """
     print("\n" + "=" * 80)
-    print("NanoPSD - Nanoparticle Size Distribution Analyzer")
+    print("NanoPSD - Nano-Particle Shape Distribution Analyzer")
     print("=" * 80)
     print("\nUsage: python3 nanopsd.py [OPTIONS]")
     print("\nYou must provide command-line arguments. Here are common examples:\n")
@@ -134,9 +134,9 @@ def show_usage_examples() -> None:
     print("⚙️  PARAMETER REFERENCE")
     print("─" * 80)
 
-    print("\n  --mode              : 'single' or 'batch'")
+    print("\n  --mode            : 'single' or 'batch'")
     print("  --input             : Image path (single) or folder path (batch)")
-    print("  --scale-bar-nm      : Scale bar size in nm, or -1 for auto-detect")
+    print("  --scale-bar-nm      : Scale bar size in nm")
     print("  --nm-per-pixel      : Direct calibration (for images without scale bars)")
     print("  --algo              : Segmentation algorithm (currently: 'classical')")
     print("  --min-size          : Minimum particle size in pixels (e.g., 3, 5)")
@@ -246,7 +246,7 @@ def main() -> None:
         image_path=args.input,  # File path or folder path
         batch=(args.mode == "batch"),  # Single vs batch mode
         # Scale calibration
-        scale_bar_nm=args.scale_bar_nm,  # Physical scale in nm (-1 = use OCR)
+        scale_bar_nm=args.scale_bar_nm,  # Physical scale in nm 
         nm_per_pixel=args.nm_per_pixel,  # Direct nm/pixel input
         # Segmentation parameters
         mode=args.algo,  # "classical" (only one implemented now)

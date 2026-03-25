@@ -53,8 +53,8 @@ The processing workflow follows these main steps:
 **EasyOCR (Supports both CPU and GPU)**
 ```bash
 pip install easyocr torch torchvision
-# GPU (CUDA): Fast performance (milliseconds)
-# CPU: Slower but functional (1-2 seconds per image)
+# GPU (CUDA): Fast performance 
+# CPU: Slower but functional 
 ```
 
 **Skip OCR entirely (Recommended)**
@@ -277,7 +277,7 @@ For each image, NanoPSD generates:
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/Huq2090/NanoPSD.git
+git clone https://github.com/lcpp-org/NanoPSD.git
 cd NanoPSD
 ```
 
@@ -1087,16 +1087,17 @@ See the LICENSE file for full details.
 If you use NanoPSD in academic work, please cite:
 
 ```
-Huq, M.F. (2026). NanoPSD: Automated Nanoparticle Size and Morphology Distribution Analysis
-from Electron Microscopy Images. GitHub repository.
-https://github.com/Huq2090/NanoPSD
+Huq, M.F. (2026). NanoPSD: A Software for Automatic Detection of Nano-Particle Shape Distribution in Electron
+Microscopy Images. 
+GitHub repository.
+https://github.com/lcpp-org/NanoPSD
 ```
 
 ---
 
 ## Contact & Support
 
-- **GitHub Issues**: https://github.com/Huq2090/NanoPSD/issues
+- **GitHub Issues**: https://github.com/lcpp-org/NanoPSD/issues
 - **Author**: M.F. Huq
 - **Institution**: University of Illinois at Urbana-Champaign
 

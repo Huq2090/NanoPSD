@@ -31,7 +31,7 @@ def plot_results(diameters_nm, image_path, df=None):
     """
     base = os.path.splitext(os.path.basename(image_path))[0]
 
-    # === IMPROVED: Overall histogram with clear bins and statistics ===
+    # Overall histogram with clear bins and statistics
     fig, ax = plt.subplots(figsize=(12, 6))
 
     # Calculate statistics
@@ -173,14 +173,14 @@ def plot_results(diameters_nm, image_path, df=None):
     plt.close()
     print(f"Saved: {out_path}")
 
-    # === Generate additional metric histograms and pie chart ===
+    # Generate additional metric histograms and pie chart 
     if df is not None:
         plot_aspect_ratio_histogram(df, image_path)
         plot_circularity_histogram(df, image_path)
         plot_solidity_histogram(df, image_path)
         plot_morphology_pie_single(df, image_path)
 
-    # === Box Plot for Size Distribution (SINGLE IMAGE) ===
+    # Box Plot for Size Distribution (SINGLE IMAGE) - with enhanced styling and statistics
     fig, ax = plt.subplots(1, 1, figsize=(8, 6))
 
     # Create box plot for particle diameters
@@ -1062,7 +1062,7 @@ def plot_batch_comparison(df_all, df_summary):
     ax.set_ylim(0, max(totals) * 1.1)  # Add 10% headroom for total labels
 
     plt.tight_layout()
-    out_path = "outputs/figures/batch_morphology_stacked_bars.png"  # ← NEW FILENAME
+    out_path = "outputs/figures/batch_morphology_stacked_bars.png"  
     plt.savefig(out_path, dpi=300, bbox_inches="tight")
     plt.close()
     print(f"Saved: {out_path}")

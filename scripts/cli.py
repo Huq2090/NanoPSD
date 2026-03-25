@@ -155,13 +155,13 @@ def build_parser() -> argparse.ArgumentParser:
     python3 main.py --mode single --input image.tif --scale-bar-nm 200 --algo classical --min-size 3
 
     # Single image with OCR auto-detection
-    python3 main.py --mode single --input image.tif --algo classical --min-size 3 --ocr-backend auto
+    python3 main.py --mode single --input image.tif --algo classical --min-size 3 --ocr-backend easyocr-auto
 
-    # Single image with EasyOCR specifically
-    python3 main.py --mode single --input image.tif --algo classical --min-size 3 --ocr-backend easyocr
+    # Single image with EasyOCR CPU specifically
+    python3 main.py --mode single --input image.tif --algo classical --min-size 3 --ocr-backend easyocr-cpu
 
-    # Batch processing with OCR
-    python3 main.py --mode batch --input ./images/ --algo classical --min-size 5 --ocr-backend auto
+    # Batch processing with OCR auto-detection
+    python3 main.py --mode batch --input ./images/ --algo classical --min-size 5 --ocr-backend easyocr-auto
     """
 
     # Create parser with program description
@@ -176,10 +176,10 @@ def build_parser() -> argparse.ArgumentParser:
         epilog=(
             "Examples:\n"
             "  Single image (manual scale):     python3 main.py --mode single --input image.tif --scale-bar-nm 200\n"
-            "  Single image (OCR auto-detect):  python3 main.py --mode single --input image.tif --ocr-backend auto\n"
-            "  Batch processing:                python3 main.py --mode batch --input ./folder/ --ocr-backend auto\n"
+            "  Single image (OCR auto-detect):  python3 main.py --mode single --input image.tif --ocr-backend easyocr-auto\n"
+            "  Batch processing:                python3 main.py --mode batch --input ./folder/ --ocr-backend easyocr-auto\n"
             "\n"
-            "For more information, visit: https://github.com/Huq2090/NanoPSD"
+            "For more information, visit: https://github.com/lcpp-org/NanoPSD"
         ),
     )
 

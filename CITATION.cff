@@ -5,19 +5,21 @@ authors:
   - family-names: Huq
     given-names: Md Fazlul
 license: GPL-3.0-or-later
-repository-code: https://github.com/Huq2090/NanoPSD
+repository-code: https://github.com/lcpp-org/NanoPSD
 preferred-citation:
   type: article
-  title: "NanoPSD: A Software for Automatic Detection of Nanoparticle Shape Distribution in SEM and TEM Electron Micrographs"
+  title: "NanoPSD: A Software for Automatic Detection of Nano-Particle Shape Distribution in Electron Microscopy Images"
   authors:
     - family-names: Huq
       given-names: Md Fazlul
-    - family-names: Author2
-      given-names: FirstName
-    - family-names: Author3
-      given-names: FirstName
-    - family-names: Author4
-      given-names: FirstName
+    - family-names: Dhaoui
+      given-names: Rakia
+    - family-names: Weerakkody
+      given-names: Emily
+    - family-names: Alfuhaid
+      given-names: Sulieman
+    - family-names: Radousky
+      given-names: Harry  
     - family-names: Curreli
       given-names: Davide
   year: 2026

@@ -54,36 +54,36 @@ Issues may use the following label types:
 
 **Type labels**
 
-bug  
+[bug]  
 Code is not behaving as expected and needs to be fixed.
 
-documentation  
+[documentation]  
 Improvements or corrections to documentation, README, or comments.
 
-enhancement  
+[enhancement]  
 New feature or improvement to existing functionality.
 
-question  
+[question]  
 Discussion about design decisions or implementation details.
 
-task  
+[task]  
 General development activity such as testing, benchmarking, or preparing figures.
 
 **Status labels**
 
-working  
+[working]  
 Work is currently in progress.
 
-paused  
+[paused]  
 Work is temporarily paused.
 
-blocked  
+[blocked]  
 Work depends on completion of another issue.
 
-under review  
+[under review]  
 Pull request has been submitted and is under review.
 
-multiple steps  
+[multiple steps]  
 Feature requires several steps (implementation, testing, documentation).
 
 ---
@@ -112,17 +112,17 @@ Once all steps are completed, close the main issue.
 
 Ensure your local repository is up to date:
 
-git fetch  
-git checkout main  
-git pull  
+`git fetch`  
+`git checkout main`  
+`git pull`  
 
 Create a new branch:
 
-git checkout -b short-description-of-change  
+`git checkout -b short-description-of-change`  
 
 Push branch to GitHub:
 
-git push -u origin short-description-of-change  
+`git push -u origin short-description-of-change`  
 
 ### Branch naming convention
 
@@ -176,10 +176,10 @@ PR: Improve robustness of particle detection
 
 If the main branch has been updated:
 
-git checkout main  
-git pull  
-git checkout branch-name  
-git merge main  
+`git checkout main`  
+`git pull`  
+`git checkout branch-name`  
+`git merge main`  
 
 Resolve any conflicts if necessary.
 
@@ -189,14 +189,14 @@ Resolve any conflicts if necessary.
 
 Push latest changes:
 
-git push  
+`git push`  
 
 Create a pull request and request review.
 
 Update issue labels:
 
-remove working  
-add under review  
+remove [working]  
+add [under review]  
 
 Address reviewer comments and update the branch as needed.
 
@@ -213,11 +213,11 @@ Ensure:
 
 Before merging:
 
-git checkout main  
-git pull  
-git checkout branch-name  
-git merge main  
-git push  
+`git checkout main`  
+`git pull`  
+`git checkout branch-name`  
+`git merge main`  
+`git push`  
 
 Confirm everything runs correctly.
 
@@ -231,7 +231,7 @@ Delete remote branch.
 
 Delete local branch:
 
-git branch -D branch-name  
+`git branch -D branch-name`  
 
 Confirm related issue is closed.
 

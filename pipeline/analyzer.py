@@ -92,7 +92,6 @@ class NanoparticleAnalyzer:
         Path to single image or folder (depends on batch_mode)
     scale_bar_nm : float
         Physical length of scale bar in nanometers
-        Use -1 to enable OCR auto-detection
     batch_mode : bool
         True for batch folder processing, False for single image
     extensions : tuple of str
@@ -121,7 +120,6 @@ class NanoparticleAnalyzer:
     # Batch processing with OCR
     >>> analyzer = NanoparticleAnalyzer(
     ...     image_path="./images/",
-    ...     scale_bar_nm=-1,  # Use OCR
     ...     batch=True,
     ...     ocr_backend="easyocr-auto"
     ... )
@@ -164,7 +162,6 @@ class NanoparticleAnalyzer:
         scale_bar_nm : float, optional
             Physical length of the scale bar in nanometers
             - Positive value (e.g., 200.0): use this as known scale
-            - -1: attempt automatic OCR detection of scale bar text
             - 0: invalid, will cause error
             - None: not using scale bar (must provide nm_per_pixel)
 

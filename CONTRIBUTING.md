@@ -186,7 +186,8 @@ Create a pull request and request review.
 Update issue labels:
 
 * remove working add under review  
-* Address reviewer comments and update the branch as needed.
+
+Address reviewer comments and update the branch as needed.
 
 Ensure:
 

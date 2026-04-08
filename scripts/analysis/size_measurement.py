@@ -156,17 +156,35 @@ def measure_particles(
 
             # Morphology Classification
             # Calculate shape metrics
-            perimeter = region.perimeter
+            # Smooth the region mask to reduce boundary noise
+            kernel_size = max(3, int(np.sqrt(region.area) * 0.1) // 2 * 2 + 1)
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
+            smoothed_mask = cv2.morphologyEx(region_mask, cv2.MORPH_CLOSE, kernel)
+            smoothed_mask = cv2.morphologyEx(smoothed_mask, cv2.MORPH_OPEN, kernel)
+
+            # Recalculate shape metrics from smoothed contour
+            smooth_contours, _ = cv2.findContours(smoothed_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if smooth_contours:
+                smooth_cnt = max(smooth_contours, key=cv2.contourArea)
+                perimeter = cv2.arcLength(smooth_cnt, True)
+                smooth_area = cv2.contourArea(smooth_cnt)
+            else:
+                perimeter = region.perimeter
+                smooth_area = region.area
+
             if len(region.coords) >= 5:
                 # Get perimeter (already calculated earlier but need it here too)
-                perimeter = region.perimeter
-
                 major_axis = region.major_axis_length
                 minor_axis = region.minor_axis_length
                 aspect_ratio = major_axis / max(minor_axis, 1e-6)
 
-                circularity = (4 * np.pi * region.area) / max(perimeter**2, 1e-6)
-                solidity = region.solidity
+                circularity = (4 * np.pi * smooth_area) / max(perimeter**2, 1e-6)
+                if smooth_contours:
+                    hull = cv2.convexHull(smooth_cnt)
+                    hull_area = cv2.contourArea(hull)
+                    solidity = smooth_area / max(hull_area, 1e-6)
+                else:
+                    solidity = region.solidity
                 extent = region.extent
 
                 # Classification logic (priority: aggregate > spherical > rod-like)

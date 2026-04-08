@@ -22,7 +22,7 @@ import os
 
 
 def preprocess_image(
-    image_path, save_steps=False, output_dir="outputs/preprocessing_steps"
+    image_path, save_steps=False, output_dir="outputs/preprocessing_steps", bright_particles=False
 ):
     """
     Preprocesses a microscopy image by enhancing contrast, smoothing, and thresholding.
@@ -85,8 +85,9 @@ def preprocess_image(
         cv2.imwrite(f"{output_dir}/{base_name}_step5_otsu_threshold.png", binary)
         print(f"Saved: {output_dir}/{base_name}_step5_otsu_threshold.png")
 
-    # Step 6: Invert the binary image
-    binary = 255 - binary
+    # Step 6: Invert the binary image (skip if bright particles)
+    if not bright_particles:
+        binary = 255 - binary
 
     if save_steps:
         cv2.imwrite(f"{output_dir}/{base_name}_step6_inverted.png", binary)

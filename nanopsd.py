@@ -257,6 +257,7 @@ def main() -> None:
         verify_scale_bar=args.verify_scale_bar,  # Enable manual verification of scale detection
         save_preprocessing_steps=args.save_preprocessing_steps,
         save_segmentation_steps=args.save_segmentation_steps,
+        bright_particles=args.bright_particles,
         # Morphology classification thresholds
         spherical_ar_max=thresholds["spherical_ar_max"],
         rodlike_ar_min=thresholds["rodlike_ar_min"],

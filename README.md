@@ -7,6 +7,9 @@ It supports both **single-image** and **batch image** analysis, providing a modu
 ---
 
 ## Features
+- Supports nanoparticle detection for both contrast polarities:
+  - dark particles on light background
+  - bright particles on dark background (via `--bright-particles` flag)
 - Automated **scale bar & text exclusion** from images
 - **Manual calibration mode** for images without scale bars (direct nm/pixel input)
 - **Particle segmentation** using classical methods (Otsu thresholding, preprocessing filters)
@@ -501,6 +504,16 @@ python3 nanopsd.py --mode batch --input ./images --algo classical --min-size 3 -
 
 ---
 
+### Contrast Polarity Option
+
+By default, NanoPSD assumes nanoparticles appear darker than the background (dark-on-light contrast), which is common in electron microscopy images.
+
+If nanoparticles appear brighter than the background (light-on-dark contrast), use the `--bright-particles` flag:
+
+```bash
+nanopsd input_image.png --bright-particles
+```
+
 ### Single Image Analysis
 
 **Recommended (with manual scale):**
@@ -595,6 +608,7 @@ batch_images/
 | `--max-size`        | Maximum particle size (pixels)                   | `--max-size 200`         | No       |
 | `--save-preprocessing-steps` | Save step-by-step preprocessing images | `--save-preprocessing-steps` | No  |
 | `--save-segmentation-steps`  | Save step-by-step segmentation images  | `--save-segmentation-steps`  | No  |
+|  `--bright-particles` | Detect bright nanoparticles on dark background | `--bright-particles` | No  |
 
 \* **Must provide either `--scale-bar-nm` OR `--nm-per-pixel` (not both)**
 

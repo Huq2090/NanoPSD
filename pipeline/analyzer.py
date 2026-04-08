@@ -140,6 +140,7 @@ class NanoparticleAnalyzer:
         nm_per_pixel: float = None,  # Adding capability to directly input nm_per_pixel
         save_preprocessing_steps: bool = False,
         save_segmentation_steps: bool = False,
+        bright_particles: bool = False,
         # Morphology classification thresholds
         spherical_ar_max=1.5,
         rodlike_ar_min=1.8,
@@ -222,6 +223,7 @@ class NanoparticleAnalyzer:
         self.nm_per_pixel_manual = nm_per_pixel  # Direct nm/pixel input
         self.save_preprocessing_steps = save_preprocessing_steps
         self.save_segmentation_steps = save_segmentation_steps
+        self.bright_particles = bright_particles
 
         # Store results for batch aggregation
         self.batch_results = []  # Will hold DataFrames from each image
@@ -543,6 +545,7 @@ class NanoparticleAnalyzer:
                     if hasattr(self, "save_preprocessing_steps")
                     else False
                 ),
+                bright_particles=self.bright_particles,
             )
 
             # -----------------------------------------------------------------

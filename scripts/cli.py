@@ -370,6 +370,16 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
 
+    p.add_argument(
+        "--bright-particles",
+        action="store_true",
+        help=(
+            "Use when particles are BRIGHT on a DARK background.\n"
+            "Default behavior assumes dark particles on light background.\n"
+            "Example: bright spheres on dark TEM background."
+        ),
+    )
+
     # ============================================================================
     # Optional: Morphology Classification Thresholds
     # ============================================================================

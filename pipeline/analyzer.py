@@ -142,6 +142,7 @@ class NanoparticleAnalyzer:
         save_preprocessing_steps: bool = False,
         save_segmentation_steps: bool = False,
         bright_particles: bool = False,
+        only_morphology: str = None,
         # Morphology classification thresholds
         spherical_ar_max=1.5,
         rodlike_ar_min=1.8,
@@ -225,6 +226,7 @@ class NanoparticleAnalyzer:
         self.save_preprocessing_steps = save_preprocessing_steps
         self.save_segmentation_steps = save_segmentation_steps
         self.bright_particles = bright_particles
+        self.only_morphology = only_morphology  # Store morphology filtering option
 
         # Store results for batch aggregation
         self.batch_results = []  # Will hold DataFrames from each image
@@ -640,6 +642,7 @@ class NanoparticleAnalyzer:
                 aggregate_c_max=self.aggregate_c_max,
                 rodlike_ar_min=self.rodlike_ar_min,
                 rodlike_s_min=self.rodlike_s_min,
+                only_morphology=self.only_morphology,
             )
             logging.info(f"Measured {len(diameters_nm)} particles (post-filter).")
 

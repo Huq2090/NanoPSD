@@ -380,6 +380,18 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
 
+    p.add_argument(
+        "--only-morphology",
+        default=None,
+        choices=["spherical", "rod-like", "aggregate"],
+        metavar="TYPE",
+        help=(
+            "Only report results for a specific morphology type.\n"
+            "Choices: spherical, rod-like, aggregate\n"
+            "Example: --only-morphology spherical"
+        ),
+    )    
+
     # ============================================================================
     # Optional: Morphology Classification Thresholds
     # ============================================================================

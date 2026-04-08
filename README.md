@@ -17,6 +17,7 @@ It supports both **single-image** and **batch image** analysis, providing a modu
 - **Flexible particle filtering** with `--min-size` and `--max-size` (removes noise and false detections)
 - **Pipeline visualization** for papers and presentations (`--save-preprocessing-steps`, `--save-segmentation-steps`)
 - **Morphology-based nanoparticle classification** (spherical, rod-like, aggregate)
+- **Morphology filtering** via `--only-morphology` (analyze only spherical, rod-like, or aggregate)
 - **Customizable morphology thresholds** via optional CLI flags
 - **Publication-quality plots** with enhanced font sizes and statistics
 - **Comprehensive shape analysis** (aspect ratio, circularity, solidity distributions)
@@ -514,6 +515,24 @@ If nanoparticles appear brighter than the background (light-on-dark contrast), u
 nanopsd input_image.png --bright-particles
 ```
 
+### Morphology Filtering
+
+To analyze only a specific particle type, use `--only-morphology`:
+
+```bash
+# Only spherical particles
+python3 nanopsd.py --mode single --input sample.tif --scale-bar-nm 200 --algo classical --min-size 3 --only-morphology spherical
+
+# Only rod-like particles
+python3 nanopsd.py --mode single --input sample.tif --scale-bar-nm 200 --algo classical --min-size 3 --only-morphology rod-like
+
+# Only aggregates
+python3 nanopsd.py --mode single --input sample.tif --scale-bar-nm 200 --algo classical --min-size 3 --only-morphology aggregate
+```
+
+When active, all outputs (contour overlays, morphology overlay, histograms, CSV, and statistics) will only include the selected particle type.
+
+
 ### Single Image Analysis
 
 **Recommended (with manual scale):**
@@ -609,6 +628,7 @@ batch_images/
 | `--save-preprocessing-steps` | Save step-by-step preprocessing images | `--save-preprocessing-steps` | No  |
 | `--save-segmentation-steps`  | Save step-by-step segmentation images  | `--save-segmentation-steps`  | No  |
 |  `--bright-particles` | Detect bright nanoparticles on dark background | `--bright-particles` | No  |
+| `--only-morphology` | Only report results for a specific morphology type | `--only-morphology spherical` | No |
 
 \* **Must provide either `--scale-bar-nm` OR `--nm-per-pixel` (not both)**
 

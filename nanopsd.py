@@ -266,6 +266,8 @@ def main() -> None:
         rodlike_s_min=thresholds["rodlike_s_min"],
         aggregate_s_max=thresholds["aggregate_s_max"],
         spherical_s_min=thresholds["spherical_s_min"],
+        # Morphology filtering
+        only_morphology=args.only_morphology,
     )
 
     # -------------------------------------------------------------------------

@@ -49,6 +49,7 @@ import os
 from glob import glob
 from typing import Tuple
 import time
+import sys
 
 # Local project imports
 from utils.scale_bar import (
@@ -493,8 +494,11 @@ class NanoparticleAnalyzer:
                     if not self._show_verification(
                         img_path, bar_bbox, scale_bar_px, eff_scale_nm
                     ):
-                        logging.warning(f"User rejected: {base}")
-                        return
+                        print("\n" + "=" * 60)
+                        print("SCALE BAR REJECTED - Exiting NanoPSD.")
+                        print("Try: --scale-bar-nm VALUE or --nm-per-pixel VALUE")
+                        print("=" * 60 + "\n")
+                        sys.exit(1)
 
                 # Compute calibration factor
                 nm_per_pixel = self._compute_nm_per_pixel(eff_scale_nm, scale_bar_px)
@@ -521,8 +525,11 @@ class NanoparticleAnalyzer:
                     if not self._show_verification(
                         img_path, bar_bbox, scale_bar_px, eff_scale_nm
                     ):
-                        logging.warning(f"User rejected: {base}")
-                        return
+                        print("\n" + "=" * 60)
+                        print("SCALE BAR REJECTED - Exiting NanoPSD.")
+                        print("Try: --scale-bar-nm VALUE or --nm-per-pixel VALUE")
+                        print("=" * 60 + "\n")
+                        sys.exit(1)
 
                 # Step 3: Compute calibration factor
                 nm_per_pixel = self._compute_nm_per_pixel(eff_scale_nm, scale_bar_px)
@@ -808,13 +815,15 @@ class NanoparticleAnalyzer:
             2,
         )
 
-        cv2.imshow("Verify Scale Bar", crop)
+        window_name = "Verify Scale Bar"
+        cv2.namedWindow(window_name, cv2.WINDOW_AUTOSIZE)
+        cv2.imshow(window_name, crop)
         print("\n" + "=" * 60)
-        print("CLICK IMAGE WINDOW then press Y or N")
+        print("CLICK IMAGE WINDOW then press: Y or y to Accept; N or n to Reject")
         print("=" * 60 + "\n")
 
         while True:
-            key = cv2.waitKey(0) & 0xFF
+            key = cv2.waitKey(500) & 0xFF
             if key == ord("y") or key == ord("Y"):
                 cv2.destroyAllWindows()
                 cv2.waitKey(1)
@@ -823,6 +832,17 @@ class NanoparticleAnalyzer:
                 cv2.destroyAllWindows()
                 cv2.waitKey(1)
                 return False
+            elif key == 255:
+                try:
+                    prop = cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE)
+                    if prop < 1:
+                        cv2.destroyAllWindows()
+                        cv2.waitKey(1)
+                        return False
+                except cv2.error:
+                    cv2.destroyAllWindows()
+                    cv2.waitKey(1)
+                    return False
 
     @staticmethod
     def _compute_nm_per_pixel(scale_bar_nm: float, scale_bar_px: float) -> float:

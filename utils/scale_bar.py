@@ -48,6 +48,7 @@ import numpy as np
 from typing import Tuple, Optional
 import os
 import re
+import logging
 
 # Try to import OCR utilities (graceful degradation if unavailable)
 try:
@@ -352,11 +353,10 @@ def _mask_from_bbox(
 #         return (min_x, min_y, max_x - min_x, max_y - min_y)
 
 #     return None
-
-
+    
 def _detect_text_near_bar(
-    image: np.ndarray, bar_bbox: Tuple[int, int, int, int]
-) -> Optional[Tuple[int, int, int, int]]:
+    image: np.ndarray, bar_bbox: Tuple[int, int, int, int], img_color: np.ndarray = None
+) -> Optional[Tuple[int, int, int, int]]:    
     """
     Detect text region near scale bar.
 
@@ -400,6 +400,36 @@ def _detect_text_near_bar(
         max_y = max(box[1] + box[3] for box in text_candidates)
 
         return (min_x, min_y, max_x - min_x, max_y - min_y)
+    
+    # Try saturation channel for colored text
+    if not text_candidates and img_color is not None:
+        x, y, w, h = bar_bbox
+        H, W = image.shape[:2]
+        search_x1 = max(0, x - 100)
+        search_x2 = min(W, x + w + 150)
+        search_y1 = max(0, y - 50)
+        search_y2 = min(H, y + h + 50)
+
+        hsv = cv2.cvtColor(img_color[search_y1:search_y2, search_x1:search_x2], cv2.COLOR_BGR2HSV)
+        sat = hsv[:, :, 1]
+        _, sat_bw = cv2.threshold(sat, 50, 255, cv2.THRESH_BINARY)
+
+        contours, _ = cv2.findContours(sat_bw, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        for cnt in contours:
+            cx, cy, cw, ch = cv2.boundingRect(cnt)
+            aspect = cw / max(ch, 1)
+            if 0.2 < aspect < 8.0 and cw > 8 and ch > 8 and cw < w * 2:
+                full_x = search_x1 + cx
+                full_y = search_y1 + cy
+                text_candidates.append((full_x, full_y, cw, ch))
+
+        if text_candidates:
+            min_x = min(box[0] for box in text_candidates)
+            min_y = min(box[1] for box in text_candidates)
+            max_x = max(box[0] + box[2] for box in text_candidates)
+            max_y = max(box[1] + box[3] for box in text_candidates)
+            return (min_x, min_y, max_x - min_x, max_y - min_y)
 
     return None
 
@@ -455,14 +485,15 @@ def detect_scale_bar(
     """
 
     # Step 0: Load image in grayscale
-    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    if img is None:
+    img_color = cv2.imread(image_path, cv2.IMREAD_COLOR)
+    if img_color is None:
         raise ValueError(f"Failed to read image: {image_path}")
+    img = cv2.cvtColor(img_color, cv2.COLOR_BGR2GRAY)
 
     # Step 1: Extract bottom-band ROI (reduce search space)
     roi, (rx, ry, rw, rh) = _bottom_band_roi(img, frac=0.25)
 
-    # Step 2: Generate and score candidate blobs
+    # Step 2A: Generate and score candidate blobs
     best = None  # Will hold: (score, width_px, bbox_full, bar_mask, roi_vis)
 
     for bw, contours in _threshold_and_candidates(roi):
@@ -485,7 +516,7 @@ def detect_scale_bar(
                 continue
 
             # Also reject if the bar is suspiciously wide (covers most of bottom)
-            if cw > rw * 0.7:  # Wider than 70% of image width
+            if cw > rw * 0.7: # Wider than 70% of image width
                 continue
 
             area = cv2.contourArea(cnt)
@@ -519,6 +550,64 @@ def detect_scale_bar(
                 roi_vis = cv2.cvtColor(roi.copy(), cv2.COLOR_GRAY2BGR)
                 cv2.rectangle(roi_vis, (x, y), (x + cw, y + ch), (0, 255, 255), 2)
                 best = (score, cw, bbox_full, bar_mask, roi_vis)
+
+    # Step 2B: Try saturation channel for colored scale bars
+    if best is None:
+        hsv = cv2.cvtColor(img_color[ry:ry+rh, 0:rw], cv2.COLOR_BGR2HSV)
+        sat = hsv[:, :, 1]
+
+        # Colored elements have high saturation against grayscale background
+        _, sat_bw = cv2.threshold(sat, 50, 255, cv2.THRESH_BINARY)
+
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        sat_bw = cv2.morphologyEx(sat_bw, cv2.MORPH_OPEN, kernel, iterations=1)
+
+        contours, _ = cv2.findContours(sat_bw, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        for cnt in contours:
+            if len(cnt) < 5:
+                continue
+
+            x, y, cw, ch = cv2.boundingRect(cnt)
+
+            if ch < 1 or cw < 10:
+                continue
+
+            aspect = cw / max(ch, 1)
+            if aspect < 5.0:
+                continue
+
+            if ch > min(50, rh * 0.2):
+                continue
+
+            if cw > rw * 0.7: # Wider than 70% of image width
+                continue
+
+            area = cv2.contourArea(cnt)
+            rect_area = cw * ch
+            extent = area / max(rect_area, 1)
+
+            hull = cv2.convexHull(cnt)
+            hull_area = cv2.contourArea(hull)
+            solidity = area / max(hull_area, 1)
+
+            dist_edge = min(x, y, rw - (x + cw), rh - (y + ch))
+
+            score = _score_bar_candidate(
+                w=cw, h=ch, y_center=y + ch / 2.0,
+                roi_h=rh, solidity=solidity, extent=extent, dist_edge=dist_edge,
+            )
+
+            bbox_full = (x + rx, y + ry, cw, ch)
+            bar_mask = _mask_from_bbox(img.shape, bbox_full, pad=2)
+
+            if best is None or score > best[0] or (score == best[0] and cw > best[1]):
+                roi_vis = cv2.cvtColor(roi.copy(), cv2.COLOR_GRAY2BGR)
+                cv2.rectangle(roi_vis, (x, y), (x + cw, y + ch), (0, 255, 255), 2)
+                best = (score, cw, bbox_full, bar_mask, roi_vis)
+
+        if best is not None:
+            logging.info("Scale bar detected via saturation channel (colored bar)")
 
     # Step 3: Fallback to Hough line detection for thin bars
     if best is None:
@@ -590,7 +679,8 @@ def detect_scale_bar(
     #     bar_mask = cv2.bitwise_or(bar_mask, text_mask)  # Combine masks
 
     # Also detect and mask text region
-    text_bbox = _detect_text_near_bar(img, bbox_full)
+    # text_bbox = _detect_text_near_bar(img, bbox_full)
+    text_bbox = _detect_text_near_bar(img, bbox_full, img_color=img_color)
     if text_bbox is not None:
         text_mask = _mask_from_bbox(img.shape, text_bbox, pad=10)
         # Combine bar mask and text mask
@@ -646,8 +736,9 @@ def detect_scale_label(
     - "0.2 µm", "0.5um", "1.0 µm"  (auto-converted to nm)
     - Filename patterns: "sample_200nm.tif", "image-0.5um.png"
     """
-
+    
     img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    img_color = cv2.imread(image_path, cv2.IMREAD_COLOR)
     if img is None:
         return None
 
@@ -670,6 +761,55 @@ def detect_scale_label(
 
     # Define search regions
     search_regions = []
+
+     # FAST PATH: Try saturation channel first (for colored text near bar)
+    if img_color is not None:
+        pad_x = max(w, 200)
+        pad_y = max(h * 8, 100)
+        sat_x1 = max(0, x - pad_x)
+        sat_y1 = max(0, y - pad_y)
+        sat_x2 = min(W, x + w + pad_x)
+        sat_y2 = min(H, y + h + pad_y)
+        bar_region_color = img_color[sat_y1:sat_y2, sat_x1:sat_x2]
+        if bar_region_color.size > 0:
+            hsv_region = cv2.cvtColor(bar_region_color, cv2.COLOR_BGR2HSV)
+            sat_region = hsv_region[:, :, 1]
+            if sat_region.max() > 30:
+                if save_debug:
+                    os.makedirs(debug_dir, exist_ok=True)
+                    cv2.imwrite(f"{debug_dir}/ocr_saturation_near_bar.png", sat_region)
+                sat_txt = ocr_read_number(
+                    sat_region,
+                    debug_dir=debug_dir if save_debug else None,
+                    backend=ocr_backend,
+                )
+                if sat_txt:
+                    parsed = parse_scale_text(sat_txt)
+                    if parsed:
+                        val_nm, _ = parsed
+                        print(f"✓ OCR Success (saturation): '{sat_txt}' → {val_nm} nm")
+                        text_bbox = (sat_x1, sat_y1, sat_x2 - sat_x1, sat_y2 - sat_y1)
+                        return float(val_nm), text_bbox
+
+    # FAST PATH: Try grayscale OCR on region near bar
+    gray_x1 = max(0, x - max(w, 200))
+    gray_y1 = max(0, y - max(h * 10, 200))
+    gray_x2 = min(W, x + w + max(w, 200))
+    gray_y2 = min(H, y + h + max(h * 10, 200))
+    gray_crop = img[gray_y1:gray_y2, gray_x1:gray_x2]
+    if gray_crop.size > 0:
+        gray_txt = ocr_read_number(
+            gray_crop,
+            debug_dir=debug_dir if save_debug else None,
+            backend=ocr_backend,
+        )
+        if gray_txt:
+            parsed = parse_scale_text(gray_txt)
+            if parsed:
+                val_nm, _ = parsed
+                print(f"✓ OCR Success (grayscale near bar): '{gray_txt}' → {val_nm} nm")
+                text_bbox = (gray_x1, gray_y1, gray_x2 - gray_x1, gray_y2 - gray_y1)
+                return float(val_nm), text_bbox
 
     # Near the bar
     near_pads = [
@@ -715,11 +855,33 @@ def detect_scale_label(
         txt = ocr_read_number(
             crop,
             debug_dir=debug_dir if save_debug else None,
-            backend=ocr_backend,  # Pass the backend choice
+            backend=ocr_backend,
         )
 
+        # Check if grayscale OCR got a valid scale
+        found = False
         if txt:
             parsed = parse_scale_text(txt)
+            if parsed:
+                found = True
+
+        # If grayscale failed, try saturation channel (for colored text)
+        if not found and img_color is not None:
+            color_crop = img_color[ry:ry2, rx:rx2]
+            if color_crop.size > 0:
+                hsv_crop = cv2.cvtColor(color_crop, cv2.COLOR_BGR2HSV)
+                sat_crop = hsv_crop[:, :, 1]
+                txt = ocr_read_number(
+                    sat_crop,
+                    debug_dir=debug_dir if save_debug else None,
+                    backend=ocr_backend,
+                )
+                if txt:
+                    parsed = parse_scale_text(txt)
+                    if parsed:
+                        found = True
+
+        if found and parsed:
             if parsed:
                 val_nm, _ = parsed
                 print(

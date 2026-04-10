@@ -143,6 +143,9 @@ def parse_scale_text(text: str) -> Optional[Tuple[float, str]]:
     t = t.replace("u", "µ")  # Common OCR error: 'u' instead of 'µ'
     t = t.replace(",", ".")  # European decimal notation support
     t = t.replace("O", "0")  # Letter O → zero (frequent OCR mistake)
+    # Fix common OCR misreads of "nm"
+    t = re.sub(r"(\d+)\s*[fF]\s*$", r"\1 nm", t)      # "200 F" → "200 nm"
+    t = re.sub(r"(?i)\b([nf][mni])\b", "nm", t)        # "ni", "fi" → "nm"
 
     # Step 2: Try multiple regex patterns (ordered from most to least specific)
     patterns = [

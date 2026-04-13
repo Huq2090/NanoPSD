@@ -195,8 +195,8 @@ def main() -> None:
     -----------------
     outputs/
     ├── results/
-    │   ├── nanoparticle_data.csv        # Particle diameters
-    │   └── {image_name}_summary.tex     # Statistical summary (LaTeX)
+    │   ├── {image_name}_nanoparticle_data.csv    # Particle diameters
+    │   └── {image_name}_summary.tex              # Statistical summary (LaTeX)
     └── figures/
         ├── {image_name}_diameter_histogram.png
         ├── {image_name}_true_contours.{ext}

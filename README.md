@@ -165,9 +165,9 @@ NanoPSD/
     ├── results/               # CSV & LaTeX summaries
     │   │
     │   ├── # Single Image Outputs:
-    │   ├── nanoparticle_data.csv          # Per-particle detailed data
-    │   ├── {image_name}_summary.csv       # Summary statistics
-    │   ├── report.tex                     # LaTeX summary
+    │   ├── {image_name}_nanoparticle_data.csv          # Per-particle detailed data
+    │   ├── {image_name}_summary.csv                    # Summary statistics
+    │   ├── report.tex                                  # LaTeX summary
     │   │
     │   └── # Batch Mode Outputs:
     │       ├── batch_all_particles.csv    # Combined data from all images
@@ -752,7 +752,7 @@ Particles are color-coded in the morphology overlay:
 
 NanoPSD generates the following outputs for each image:
 
-**1. Detailed Particle Data** (`nanoparticle_data.csv`):
+**1. Detailed Particle Data** (`{image_name}_nanoparticle_data.csv`):
 ```csv
 Diameter (nm),Diameter (pixels),Centroid_X,Centroid_Y,Aspect_Ratio,Circularity,Solidity,Extent,Morphology
 42.5,20.8,523.4,312.1,1.2,0.85,0.92,0.78,spherical

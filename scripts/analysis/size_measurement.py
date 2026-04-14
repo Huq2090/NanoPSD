@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 import cv2
 import matplotlib.pyplot as plt
-from skimage.draw import ellipse_perimeter
+# from skimage.draw import ellipse_perimeter
 
 CONTOUR_THICKNESS = 5  # Thickness of contour lines when drawing
 
@@ -79,6 +79,8 @@ def measure_particles(
     circular_img = true_contour_img.copy()
     elliptical_img = true_contour_img.copy()
     combined_img = true_contour_img.copy()
+    true_circular_img = true_contour_img.copy()
+    morphology_overlay = img_for_overlay.copy()
 
     # Initialize list to store particle diameters (in nanometers)
     diameters_pixels = []
@@ -169,19 +171,27 @@ def measure_particles(
             contours, _ = cv2.findContours(
                 region_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
             )
-            cv2.drawContours(
-                true_contour_img, contours, -1, (255, 0, 0), CONTOUR_THICKNESS
-            )
+            cv2.drawContours(true_contour_img, contours, -1, (255, 0, 0), CONTOUR_THICKNESS)
             cv2.drawContours(combined_img, contours, -1, (255, 0, 0), CONTOUR_THICKNESS)
+            cv2.drawContours(true_circular_img, contours, -1, (255, 0, 0), CONTOUR_THICKNESS)
 
-            # --- 2. Circular Equivalent Contour (in RED) ---
+            # --- Morphology color contour (inline — avoids index desync with --only-morphology) ---
+            morph_color = {
+                "spherical": (255, 0, 0),   # Blue (BGR)
+                "rod-like": (255, 255, 0),  # Bright Cyan
+                "aggregate": (255, 0, 255), # Magenta
+            }
+            cv2.drawContours(
+                morphology_overlay, contours, -1,
+                morph_color.get(morphology, (255, 255, 255)), CONTOUR_THICKNESS
+            )
+
+            # --- 2. Circular Equivalent Contour (in CYAN) ---
             d_px = region.equivalent_diameter
             y, x = region.centroid
-            rr, cc = ellipse_perimeter(int(y), int(x), int(d_px / 2), int(d_px / 2))
-            rr = np.clip(rr, 0, original_image.shape[0] - 1)
-            cc = np.clip(cc, 0, original_image.shape[1] - 1)
-            circular_img[rr, cc] = (0, 0, 255)
-            combined_img[rr, cc] = (0, 0, 255)
+            cv2.circle(circular_img, (int(x), int(y)), int(d_px / 2), (255, 0, 255), CONTOUR_THICKNESS)
+            cv2.circle(combined_img, (int(x), int(y)), int(d_px / 2), (255, 0, 255), CONTOUR_THICKNESS)
+            cv2.circle(true_circular_img, (int(x), int(y)), int(d_px / 2), (255, 0, 255), CONTOUR_THICKNESS)
 
             # --- 3. Elliptical Equivalent Contour (in PINK) ---
             for contour in contours:
@@ -216,6 +226,11 @@ def measure_particles(
     stem = os.path.splitext(os.path.basename(image_path))[0]  # e.g., "SEM_Sample_Image"
     ext = os.path.splitext(image_path)[1]  # e.g., ".tif"
 
+    # Scale legend text to image size (reference: 2048px width)
+    _font_scale = max(0.5, img_for_overlay.shape[1] / 700)
+    _font_thick = max(1, int(_font_scale * 2.5))
+    _legend_gap = max(30, int(img_for_overlay.shape[1] / 20))
+
     true_path = f"outputs/figures/{stem}_true_contours{ext}"
     circ_path = f"outputs/figures/{stem}_circular_equivalent{ext}"
     ell_path = f"outputs/figures/{stem}_elliptical_equivalent{ext}"
@@ -232,91 +247,54 @@ def measure_particles(
     print(" -", ell_path)
     print(" -", all_path)
 
-    # Morphology overlay
-    morphology_overlay = img_for_overlay.copy()
+    # True contour + circular equivalent combined overlay with legend
+    tc_path = f"outputs/figures/{stem}_true_circular{ext}"
+    legend_y = _legend_gap
+    legend_items_tc = [
+        ("True Contour", (255, 0, 0)),
+        ("Circular Equivalent", (255, 0, 255)),
+    ]
+    for text, color in legend_items_tc:
+        cv2.putText(
+            true_circular_img, text, (15, legend_y),
+            cv2.FONT_HERSHEY_SIMPLEX, _font_scale, color, _font_thick,
+        )
+        legend_y += _legend_gap
+    cv2.imwrite(tc_path, true_circular_img)
+    print(" -", tc_path)
 
-    color_map = {
-        "spherical": (0, 100, 0),  # Dark Green
-        "rod-like": (255, 0, 0),  # Blue (BGR)
-        "aggregate": (0, 0, 255),  # Red
-    }
-
-    # Debug counts
+    # Morphology distribution summary
     morph_types = [c["morphology"] for c in centroids]
     from collections import Counter
-
     counts = Counter(morph_types)
     print(f"Morphology distribution: {dict(counts)}")
 
-    region_idx = 0
-    for region in regions:
-        if max_area_px >= region.area >= min_area_px:
-            if region_idx >= len(centroids):
-                break
+    # # Morphology overlay
+    # # True contour + circular equivalent combined overlay with legend
+    # tc_path = f"outputs/figures/{stem}_true_circular{ext}"
+    # legend_y = _legend_gap
+    # for text, color in [("True Contour", (255, 0, 0)), ("Circular Equivalent", (0, 255, 255))]:
+    #     cv2.putText(
+    #         true_circular_img, text, (15, legend_y),
+    #         cv2.FONT_HERSHEY_SIMPLEX, 3.0, color, 8,
+    #     )
+    #     legend_y += _legend_gap
+    # cv2.imwrite(tc_path, true_circular_img)
+    # print(" -", tc_path)
 
-            morph = centroids[region_idx]["morphology"]
-            color = color_map.get(morph, (255, 255, 255))
+    # # Morphology distribution summary
+    # morph_types = [c["morphology"] for c in centroids]
+    # from collections import Counter
+    # counts = Counter(morph_types)
+    # print(f"Morphology distribution: {dict(counts)}")
 
-            region_mask = (labeled_image == region.label).astype(np.uint8)
-            contours, _ = cv2.findContours(
-                region_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-            )
-            cv2.drawContours(morphology_overlay, contours, -1, color, CONTOUR_THICKNESS)
-
-            # Optionally, add text labels at centroids for each particle. S = spherical, R = rod-like, A = aggregate
-            # Commented out for clarity.
-            # cy, cx = region.centroid
-            # label = morph[0].upper()
-            # cv2.putText(
-            #     morphology_overlay,
-            #     label,
-            #     (int(cx) - 5, int(cy) + 5),
-            #     cv2.FONT_HERSHEY_SIMPLEX,
-            #     0.5,
-            #     color,
-            #     1,
-            # )
-
-            region_idx += 1
-
-    # # Add legend
-    # legend_y = 60
-    # cv2.putText(
-    #     morphology_overlay,
-    #     "Green = Spherical",
-    #     (15, legend_y),
-    #     cv2.FONT_HERSHEY_SIMPLEX,
-    #     2.0,
-    #     (0, 100, 0),
-    #     5,
-    # )
-    # cv2.putText(
-    #     morphology_overlay,
-    #     "Blue = Rod-like",
-    #     (15, legend_y + 60),
-    #     cv2.FONT_HERSHEY_SIMPLEX,
-    #     2.0,
-    #     (255, 0, 0),
-    #     5,
-    # )
-    # cv2.putText(
-    #     morphology_overlay,
-    #     "Red = Aggregate",
-    #     (15, legend_y + 120),
-    #     cv2.FONT_HERSHEY_SIMPLEX,
-    #     2.0,
-    #     (0, 0, 255),
-    #     5,
-    # )
-
-    # Add legend (only for morphologies present in results)
+    # Add legend to morphology overlay (only for morphologies present)
     legend_items = [
-        ("Spherical", (0, 100, 0), "spherical"),
-        ("Rod-like", (255, 0, 0), "rod-like"),
-        ("Aggregate", (0, 0, 255), "aggregate"),
+        ("Spherical", (255, 0, 0), "spherical"),
+        ("Rod-like", (255, 255, 0), "rod-like"),
+        ("Aggregate", (255, 0, 255), "aggregate"),
     ]
-    morph_types = [c["morphology"] for c in centroids]
-    legend_y = 120
+    legend_y = _legend_gap
     for text, color, morph in legend_items:
         if morph in morph_types:
             cv2.putText(
@@ -324,11 +302,11 @@ def measure_particles(
                 text,
                 (15, legend_y),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                3.0,
+                _font_scale,
                 color,
-                8,
+                _font_thick,
             )
-            legend_y += 100
+            legend_y += _legend_gap
 
     # Save morphology overlay
     morph_path = f"outputs/figures/{stem}_morphology_overlay{ext}"

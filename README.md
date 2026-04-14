@@ -139,6 +139,8 @@ NanoPSD/
     │   ├── {image}_circular_equivalent.{ext}        # Circular equivalent contours
     │   ├── {image}_elliptical_equivalent.{ext}      # Elliptical fit contours
     │   ├── {image}_all_contour_types.{ext}          # Combined contour comparison
+    │    ── {image_name}_true_circular.{ext}         # True contour and circular equivalent combined
+    │   ├── {image_name}_morphology_overlay.{ext}    # Morphology classification overlayed
     │   │
     │   └── # Batch Mode Outputs:
     │       ├── batch_boxplot_comparison.png          # Size distribution box plots
@@ -273,7 +275,7 @@ For each image, NanoPSD generates:
 
 **Morphology visualizations:**
 - Pie chart showing morphology percentages
-- Color-coded overlay (green=spherical, blue=rod-like, red=aggregate)
+- Color-coded overlay (blue=spherical, cyan=rod-like, magenta=aggregate)
 - 4-panel morphology breakdown by particle type
 
 
@@ -742,9 +744,9 @@ python3 nanopsd.py --mode batch --input ./images/ --scale-bar-nm 200 \
 ### Visualization
 
 Particles are color-coded in the morphology overlay:
-- **Green**: Spherical particles
-- **Blue**: Rod-like particles
-- **Red**: Aggregate particles
+- **Blue**: Spherical particles
+- **Cyan**: Rod-like particles
+- **Magenta**: Aggregate particles
 
 ### Output Files
 
@@ -780,7 +782,7 @@ sample_image.tif,147,42.35,12.78,39.21,18.45,89.32,89,32,26
 
 *Morphology Classification:*
 - `{image}_morphology_pie.png` - Morphology distribution pie chart (percentages and counts)
-- `{image}_morphology_overlay.{ext}` - Color-coded particle contours (Green=Spherical, Blue=Rod-like, Red=Aggregate)
+- `{image}_morphology_overlay.{ext}` - Color-coded particle contours (Blue=Spherical, Cyan=Rod-like, Magenta=Aggregate)
 - `{image}_morphology_histograms.png` - 4-panel morphology breakdown by particle type
 
 *Contour Overlays:*

@@ -13,6 +13,7 @@ It supports both **single-image** and **batch image** analysis, providing a modu
 - Automated **scale bar & text exclusion** from images
 - **Manual calibration mode** for images without scale bars (direct nm/pixel input)
 - **Interactive ROI selection** (`--interactive-roi`) for analyzing only part of an image
+- **Interactive scale bar calibration** (`--interactive-scale`) for drawing a scale line with the mouse when detection/OCR fails
 - **Particle segmentation** using classical methods (Otsu thresholding, preprocessing filters)
 - **Size extraction & visualization** (histograms, plots, CSV export)
 - **Flexible particle filtering** with `--min-size` and `--max-size` (removes noise and false detections)
@@ -528,6 +529,32 @@ The pipeline then analyzes **only the selected region**. Output files use the or
 - Overlay figures (`*_true_contours`, `*_morphology_overlay`, etc.) show the **full original image** with a yellow rectangle around the selected ROI and contours drawn only inside the ROI. Overlay files are saved as `.png` (lossless) regardless of input format.
 - **Known limitation**: legends inside overlays (e.g., the Spherical/Rod-like/Aggregate legend) are drawn inside the ROI rectangle. Moving legends to a position on the full-image canvas is a planned follow-up.
 
+### Optional: Interactive Scale Bar Calibration
+
+When the automatic scale bar detection or OCR fails, or when you want to manually calibrate by drawing across a reference feature, add `--interactive-scale`. This is a **calibration method**, mutually exclusive with `--scale-bar-nm`, `--nm-per-pixel`, and `--ocr-backend`.
+
+```
+python3 nanopsd.py --mode single --input sample.tif --algo classical \
+    --min-size 3 --interactive-scale
+```
+
+**Workflow:**
+1. A window opens showing the image.
+2. Press the mouse button at the scale bar's start, drag to the end, release.
+3. Review the drawn yellow line. Press:
+   - **ENTER** to accept
+   - **R** to redo
+   - **ESC** to cancel
+4. In the terminal, type the scale value (e.g. `200`).
+5. Press `n` for nm or `u` for µm.
+6. The pipeline continues with the computed `nm_per_pixel`.
+
+**Notes:**
+- Works with both `--mode single` and `--mode batch` (the prompt repeats for every image).
+- Composes with `--interactive-roi`: scale is calibrated first, then the ROI prompt appears.
+- The drawn line does not have to be exactly horizontal — Euclidean distance is used.
+
+```
 ---
 
 ### Contrast Polarity Option
@@ -655,8 +682,11 @@ batch_images/
 |  `--bright-particles` | Detect bright nanoparticles on dark background | `--bright-particles` | No  |
 | `--only-morphology` | Only report results for a specific morphology type | `--only-morphology spherical` | No |
 | `--interactive-roi` | Drag a rectangle on each image to select the analysis region | `--interactive-roi` | No |
+| `--interactive-scale` | Draw a line across the scale bar; type value and unit in terminal | `--interactive-scale` | One of these\* |
 
-\* **Must provide either `--scale-bar-nm` OR `--nm-per-pixel` (not both)**
+Note: `--interactive-scale` is "one of these*" because it's a calibration method (mutually exclusive with the other three).
+
+\* **Must provide either `--scale-bar-nm` OR `--nm-per-pixel` OR `--interactive-scale` (not any two at a time)**
 
 <!-- | Parameter           | Description                                     | Example                  |
 |---------------------|-------------------------------------------------|--------------------------|

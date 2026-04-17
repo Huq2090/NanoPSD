@@ -260,6 +260,8 @@ def main() -> None:
         bright_particles=args.bright_particles,
         # Interactive ROI selection (optional)
         interactive_roi=args.interactive_roi,
+        # Interactive scale bar line selection (optional)
+        interactive_scale=args.interactive_scale,
         # Morphology classification thresholds
         spherical_ar_max=thresholds["spherical_ar_max"],
         rodlike_ar_min=thresholds["rodlike_ar_min"],

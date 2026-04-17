@@ -62,6 +62,7 @@ from utils.interactive import (
     select_roi_interactive,
     crop_to_cache,
     delete_cache_file,
+    select_scale_line_interactive,
 )
 
 from scripts.preprocessing.clahe_filter import preprocess_image
@@ -151,6 +152,7 @@ class NanoparticleAnalyzer:
         bright_particles: bool = False,
         only_morphology: str = None,
         interactive_roi: bool = False,
+        interactive_scale: bool = False,
         # Morphology classification thresholds
         spherical_ar_max=1.5,
         rodlike_ar_min=1.8,
@@ -236,6 +238,7 @@ class NanoparticleAnalyzer:
         self.bright_particles = bright_particles
         self.only_morphology = only_morphology  # Store morphology filtering option
         self.interactive_roi = bool(interactive_roi)  # Interactive ROI selection
+        self.interactive_scale = bool(interactive_scale)  # Interactive scale bar line selection
 
         # Store results for batch aggregation
         self.batch_results = []  # Will hold DataFrames from each image
@@ -254,16 +257,20 @@ class NanoparticleAnalyzer:
         has_scale_bar = self.scale_bar_nm is not None
         has_ocr = self.ocr_backend is not None
         has_nm_per_px = self.nm_per_pixel_manual is not None
+        has_interactive_scale = self.interactive_scale
 
         # Count how many methods provided
-        methods_count = sum([has_scale_bar, has_ocr, has_nm_per_px])
+        methods_count = sum(
+            [has_scale_bar, has_ocr, has_nm_per_px, has_interactive_scale]
+        )
 
         if methods_count == 0:
             raise ValueError(
                 "Must provide ONE calibration method:\n"
                 "  --scale-bar-nm VALUE     (manual scale value)\n"
                 "  --ocr-backend BACKEND    (automatic OCR detection)\n"
-                "  --nm-per-pixel VALUE     (no scale bar)"
+                "  --nm-per-pixel VALUE     (no scale bar)\n"
+                "  --interactive-scale      (draw scale bar with mouse)"
             )
 
         if methods_count > 1:
@@ -274,6 +281,8 @@ class NanoparticleAnalyzer:
                 methods_used.append("ocr_backend")
             if has_nm_per_px:
                 methods_used.append("nm_per_pixel")
+            if has_interactive_scale:
+                methods_used.append("interactive_scale")
 
             raise ValueError(
                 f"Cannot use multiple calibration methods: {', '.join(methods_used)}\n"
@@ -474,7 +483,24 @@ class NanoparticleAnalyzer:
             # Step 1: Determine Calibration Mode (3 options)
             # -----------------------------------------------------------------
 
-            if self.nm_per_pixel_manual is not None:
+            if self.interactive_scale:
+                # MODE D: Interactive scale line drawing (user draws across
+                # the scale bar with the mouse, then types the scale value
+                # and unit). The pipeline then proceeds as in MODE A — no
+                # geometric detection or OCR runs, no bar masking.
+                logging.info("✏️  Interactive scale bar line mode")
+                nm_per_pixel = select_scale_line_interactive(img_path)
+                if nm_per_pixel is None:
+                    print("\n" + "=" * 60)
+                    print("INTERACTIVE SCALE SELECTION CANCELLED - Exiting NanoPSD.")
+                    print("=" * 60 + "\n")
+                    sys.exit(2)
+                bar_mask = None
+                logging.info(
+                    f"Calibration: {nm_per_pixel:.4f} nm/pixel (interactive)"
+                )
+
+            elif self.nm_per_pixel_manual is not None:
                 # MODE A: Manual calibration (no scale bar)
                 logging.info("⚙️  Manual calibration mode (no scale bar)")
                 nm_per_pixel = self.nm_per_pixel_manual

@@ -412,6 +412,32 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
 
+    p.add_argument(
+        "--interactive-scale",
+        action="store_true",
+        help=(
+            "Manually calibrate the image by drawing a line across the\n"
+            "scale bar with the mouse. Useful when scale bar detection\n"
+            "or OCR fails, or when the image has no explicit scale bar\n"
+            "but the user knows a reference length.\n"
+            "\n"
+            "This is a calibration method, mutually exclusive with\n"
+            "--scale-bar-nm, --nm-per-pixel, and --ocr-backend. Exactly\n"
+            "one calibration method must be provided.\n"
+            "\n"
+            "Workflow:\n"
+            "  1. A window opens showing the image.\n"
+            "  2. Press the mouse button at the scale bar's start, drag\n"
+            "     to the end, release.\n"
+            "  3. Press ENTER to accept, R to redo, ESC to cancel.\n"
+            "  4. Type the scale value (e.g. 200).\n"
+            "  5. Press 'n' for nm or 'u' for µm.\n"
+            "\n"
+            "Works in both --mode single and --mode batch (user is\n"
+            "prompted for every image in batch mode)."
+        ),
+    )
+
     # ============================================================================
     # Optional: Morphology Classification Thresholds
     # ============================================================================
@@ -472,9 +498,12 @@ def parse_args():
     has_scale_bar = args.scale_bar_nm is not None
     has_ocr = args.ocr_backend is not None
     has_nm_per_px = args.nm_per_pixel is not None
+    has_interactive_scale = bool(getattr(args, "interactive_scale", False))
 
     # Count how many methods provided
-    methods_count = sum([has_scale_bar, has_ocr, has_nm_per_px])
+    methods_count = sum(
+        [has_scale_bar, has_ocr, has_nm_per_px, has_interactive_scale]
+    )
 
     # Must provide exactly ONE method
     if methods_count == 0:
@@ -483,11 +512,13 @@ def parse_args():
             "  Option 1: --scale-bar-nm VALUE     (manual scale value)\n"
             "  Option 2: --ocr-backend BACKEND    (automatic OCR detection)\n"
             "  Option 3: --nm-per-pixel VALUE     (no scale bar, direct calibration)\n"
+            "  Option 4: --interactive-scale      (draw scale line with mouse)\n"
             "\n"
             "Examples:\n"
             "  python3 nanopsd.py --input image.tif --scale-bar-nm 200 --min-size 3\n"
             "  python3 nanopsd.py --input image.tif --ocr-backend easyocr-auto --min-size 3\n"
-            "  python3 nanopsd.py --input image.tif --nm-per-pixel 2.5 --min-size 3"
+            "  python3 nanopsd.py --input image.tif --nm-per-pixel 2.5 --min-size 3\n"
+            "  python3 nanopsd.py --input image.tif --interactive-scale --min-size 3"
         )
 
     if methods_count > 1:
@@ -498,6 +529,8 @@ def parse_args():
             methods_used.append("--ocr-backend")
         if has_nm_per_px:
             methods_used.append("--nm-per-pixel")
+        if has_interactive_scale:
+            methods_used.append("--interactive-scale")
 
         parser.error(
             f"Cannot use multiple calibration methods together.\n"
@@ -506,7 +539,8 @@ def parse_args():
             f"Choose ONE of:\n"
             f"  --scale-bar-nm (manual scale value)\n"
             f"  --ocr-backend (automatic OCR)\n"
-            f"  --nm-per-pixel (no scale bar)"
+            f"  --nm-per-pixel (no scale bar)\n"
+            f"  --interactive-scale (draw with mouse)"
         )
 
     return args

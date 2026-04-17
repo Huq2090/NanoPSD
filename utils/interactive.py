@@ -36,6 +36,7 @@ Design notes:
 """
 
 import logging
+import math
 import os
 from typing import Optional, Tuple
 
@@ -46,6 +47,39 @@ from scripts.preprocessing.clahe_filter import compute_full_image_otsu
 
 # Window title shown to the user during ROI selection
 _ROI_WINDOW_TITLE = "NanoPSD - Drag a rectangle to select ROI, ENTER to confirm, ESC to cancel"
+
+
+def _get_max_display_size(
+    default_w: int = 1200,
+    default_h: int = 800,
+    margin_w: int = 60,
+    margin_h: int = 140,
+) -> Tuple[int, int]:
+    """
+    Return a conservative (max_width, max_height) that fits on the user's
+    primary display, with margin reserved for OS chrome (taskbar, title
+    bar, menu bar).
+
+    Tries Tkinter first (cross-platform, in stdlib). Falls back to
+    hard-coded defaults if Tkinter is unavailable or no display is
+    accessible. The result is intentionally conservative — better to
+    render slightly smaller than to spill off-screen.
+    """
+    try:
+        import tkinter
+        root = tkinter.Tk()
+        try:
+            # withdraw() hides the ghost Tk window that briefly appears
+            root.withdraw()
+            screen_w = root.winfo_screenwidth()
+            screen_h = root.winfo_screenheight()
+        finally:
+            root.destroy()
+        return (max(400, screen_w - margin_w), max(300, screen_h - margin_h))
+    except Exception:
+        # Tkinter unavailable, no display, or any other error — use safe
+        # defaults that fit on almost any modern screen.
+        return (default_w, default_h)
 
 
 def select_roi_interactive(
@@ -85,12 +119,22 @@ def select_roi_interactive(
 
     h, w = img.shape[:2]
 
-    # Scale down for display if the image is large, but keep coordinates in
-    # the ORIGINAL image space.
-    scale = 1.0
-    if max(h, w) > max_display_dim:
-        scale = max_display_dim / float(max(h, w))
-        display = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+    # Determine the maximum window size that fits on screen, with room
+    # for OS chrome. This prevents the window from being pushed off the
+    # bottom of the display on laptops / small monitors. The explicit
+    # max_display_dim (from the caller) acts as an additional upper cap.
+    max_w, max_h = _get_max_display_size()
+    max_w = min(max_w, max_display_dim)
+    max_h = min(max_h, max_display_dim)
+
+    # Scale by the MOST RESTRICTIVE of width/height so both dimensions fit.
+    # Coordinates are always kept in ORIGINAL image space.
+    scale = min(max_w / float(w), max_h / float(h), 1.0)
+    if scale < 1.0:
+        display = cv2.resize(
+            img, (int(w * scale), int(h * scale)),
+            interpolation=cv2.INTER_AREA,
+        )
     else:
         display = img
 
@@ -231,3 +275,229 @@ def delete_cache_file(path: str) -> None:
             os.remove(path)
     except OSError as e:
         logging.warning(f"Could not delete cache file {path}: {e}")
+
+# =============================================================================
+# Interactive Scale Bar Length Selection
+# =============================================================================
+
+_SCALE_WINDOW_TITLE = (
+    "NanoPSD - Drag a line across the scale bar; "
+    "ENTER to accept, R to redo, ESC to cancel"
+)
+
+
+def _prompt_scale_value_and_unit() -> Optional[Tuple[float, str]]:
+    """
+    Prompt the user in the terminal for the scale bar's numeric value and
+    unit. Used after the user has drawn the scale-bar line.
+
+    Returns
+    -------
+    (value, unit) or None
+        value : float — the scale value the user typed (e.g. 200, 0.2)
+        unit  : str — either "n" (nm) or "u" (µm)
+        Returns None if the user cancels by pressing Ctrl+C or entering
+        blank.
+    """
+    try:
+        raw = input("Scale value (number, e.g. 200): ").strip()
+        if not raw:
+            print("  Empty value; cancelling.")
+            return None
+        try:
+            value = float(raw)
+        except ValueError:
+            print(f"  '{raw}' is not a valid number; cancelling.")
+            return None
+        if value <= 0:
+            print(f"  Value must be positive; got {value}. Cancelling.")
+            return None
+
+        unit_raw = input("Unit? [n]m / [u]m: ").strip().lower()
+        if unit_raw not in ("n", "u"):
+            print(f"  Unit must be 'n' or 'u'; got {unit_raw!r}. Cancelling.")
+            return None
+
+        return value, unit_raw
+    except (KeyboardInterrupt, EOFError):
+        print("\n  Input cancelled.")
+        return None
+
+
+def select_scale_line_interactive(
+    image_path: str,
+    max_display_dim: int = 1200,
+) -> Optional[float]:
+    """
+    Prompt the user to drag a line across the scale bar in the image and
+    return the implied nm_per_pixel calibration factor.
+
+    Flow
+    ----
+    1. Open a window showing the image (scaled down if needed so it fits
+       on the user's screen).
+    2. User presses mouse button at scale bar start, drags to end, releases.
+    3. A live yellow line is drawn during the drag.
+    4. User can redo (R) or accept (ENTER). ESC cancels entirely.
+    5. After acceptance, prompt for the scale value and unit in the terminal.
+    6. Compute and return nm_per_pixel.
+
+    Parameters
+    ----------
+    image_path : str
+        Path to the image.
+    max_display_dim : int
+        Additional upper cap on display size (in pixels per side). The
+        actual display size is the minimum of (screen fit, max_display_dim).
+        The returned nm_per_pixel is always in ORIGINAL image coordinates,
+        not display coordinates.
+
+    Returns
+    -------
+    float or None
+        nm_per_pixel calibration factor. Returns None if the user cancels.
+    """
+    img = cv2.imread(image_path, cv2.IMREAD_COLOR)
+    if img is None:
+        raise FileNotFoundError(
+            f"Could not read image for interactive scale selection: {image_path}"
+        )
+
+    h, w = img.shape[:2]
+
+    # Fit the display to the user's screen (see _get_max_display_size).
+    # max_display_dim acts as an additional upper cap.
+    max_w, max_h = _get_max_display_size()
+    max_w = min(max_w, max_display_dim)
+    max_h = min(max_h, max_display_dim)
+
+    scale = min(max_w / float(w), max_h / float(h), 1.0)
+    if scale < 1.0:
+        display = cv2.resize(
+            img, (int(w * scale), int(h * scale)),
+            interpolation=cv2.INTER_AREA,
+        )
+    else:
+        display = img.copy()
+
+    base_display = display.copy()
+
+    # State captured by the mouse callback.
+    state = {
+        "is_dragging": False,
+        "start": None,   # (x, y) in display coords
+        "end": None,     # (x, y) in display coords
+        "has_line": False,
+    }
+
+    def on_mouse(event, x, y, flags, param):
+        if event == cv2.EVENT_LBUTTONDOWN:
+            state["is_dragging"] = True
+            state["start"] = (x, y)
+            state["end"] = (x, y)
+            state["has_line"] = True
+        elif event == cv2.EVENT_MOUSEMOVE and state["is_dragging"]:
+            state["end"] = (x, y)
+        elif event == cv2.EVENT_LBUTTONUP and state["is_dragging"]:
+            state["is_dragging"] = False
+            state["end"] = (x, y)
+
+    print("\n" + "=" * 60)
+    print("INTERACTIVE SCALE BAR SELECTION")
+    print("=" * 60)
+    print(f"Image: {os.path.basename(image_path)}  ({w} x {h} px)")
+    print("Instructions:")
+    print("  - Press mouse button at the scale bar's start and drag to the end.")
+    print("  - Release to finalize the line.")
+    print("  - Press ENTER to accept the drawn line.")
+    print("  - Press R to redo.")
+    print("  - Press ESC to cancel.")
+    print("=" * 60 + "\n")
+
+    cv2.namedWindow(_SCALE_WINDOW_TITLE, cv2.WINDOW_AUTOSIZE)
+    cv2.setMouseCallback(_SCALE_WINDOW_TITLE, on_mouse)
+
+    cancelled = False
+    accepted = False
+    line_color = (0, 255, 255)  # Yellow
+    line_thickness = max(2, int(min(display.shape[:2]) / 250))
+
+    try:
+        while True:
+            frame = base_display.copy()
+            if state["has_line"] and state["start"] and state["end"]:
+                cv2.line(frame, state["start"], state["end"],
+                            line_color, line_thickness)
+                cv2.circle(frame, state["start"], line_thickness * 2,
+                            line_color, -1)
+                cv2.circle(frame, state["end"], line_thickness * 2,
+                            line_color, -1)
+
+            cv2.imshow(_SCALE_WINDOW_TITLE, frame)
+            key = cv2.waitKey(20) & 0xFF
+
+            try:
+                prop = cv2.getWindowProperty(
+                    _SCALE_WINDOW_TITLE, cv2.WND_PROP_VISIBLE
+                )
+                if prop < 1:
+                    cancelled = True
+                    break
+            except cv2.error:
+                cancelled = True
+                break
+
+            if key == 27:  # ESC
+                cancelled = True
+                break
+            if key in (ord("\r"), ord("\n"), 13, 10):  # ENTER
+                if state["has_line"] and not state["is_dragging"]:
+                    accepted = True
+                    break
+                else:
+                    print("  No line drawn yet. Drag across the scale bar first.")
+            if key in (ord("r"), ord("R")):
+                state["is_dragging"] = False
+                state["start"] = None
+                state["end"] = None
+                state["has_line"] = False
+                print("  Line cleared. Draw again.")
+    finally:
+        cv2.destroyWindow(_SCALE_WINDOW_TITLE)
+        cv2.waitKey(1)
+
+    if cancelled or not accepted:
+        logging.info("Interactive scale selection cancelled.")
+        return None
+
+    # Convert endpoints from display space back to original-image space
+    sx, sy = state["start"]
+    ex, ey = state["end"]
+    if scale != 1.0:
+        sx = sx / scale
+        sy = sy / scale
+        ex = ex / scale
+        ey = ey / scale
+
+    pixel_length = math.sqrt((ex - sx) ** 2 + (ey - sy) ** 2)
+    if pixel_length <= 0:
+        print("  Zero-length line; cancelling.")
+        return None
+
+    logging.info(
+        f"Scale line drawn: {pixel_length:.2f} pixels in original image space"
+    )
+
+    value_unit = _prompt_scale_value_and_unit()
+    if value_unit is None:
+        return None
+    value, unit = value_unit
+
+    nm_value = value * 1000.0 if unit == "u" else value
+    nm_per_pixel = nm_value / pixel_length
+
+    logging.info(
+        f"Calibration: {nm_per_pixel:.4f} nm/pixel "
+        f"(line: {pixel_length:.2f}px, value: {value} {unit}m = {nm_value} nm)"
+    )
+    return nm_per_pixel

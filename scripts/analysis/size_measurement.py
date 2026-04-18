@@ -194,11 +194,24 @@ def measure_particles(
             cv2.circle(true_circular_img, (int(x), int(y)), int(d_px / 2), (255, 0, 255), CONTOUR_THICKNESS)
 
             # --- 3. Elliptical Equivalent Contour (in PINK) ---
+            # cv2.fitEllipse is an ill-conditioned least-squares fit on
+            # contours that are essentially collinear (1-pixel-wide strips,
+            # edge fragments). It can return degenerate ellipses with
+            # near-zero minor axes or absurdly large major axes (e.g.,
+            # ~7.7e7 px), which render as horizontal or vertical lines
+            # across the entire overlay. Reject these by requiring:
+            #   - both axes >= 1 pixel (reject near-zero)
+            #   - both axes <= 2x the contour's bounding-box diagonal
+            #     (reject axis-length explosions)
             for contour in contours:
                 if len(contour) >= 5:
                     ellipse = cv2.fitEllipse(contour)
                     (center, axes, angle) = ellipse
-                    if axes[0] > 0 and axes[1] > 0:
+                    x_bb, y_bb, cw_bb, ch_bb = cv2.boundingRect(contour)
+                    bbox_diag = (cw_bb * cw_bb + ch_bb * ch_bb) ** 0.5
+                    max_axis = max(10.0, bbox_diag * 2.0)
+                    if (axes[0] >= 1.0 and axes[1] >= 1.0
+                            and axes[0] <= max_axis and axes[1] <= max_axis):
                         cv2.ellipse(
                             elliptical_img, ellipse, (255, 0, 255), CONTOUR_THICKNESS
                         )

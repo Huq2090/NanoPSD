@@ -498,7 +498,7 @@ def detect_scale_bar(
 
     for bw, contours in _threshold_and_candidates(roi):
         for cnt in contours:
-            if len(cnt) < 5:
+            if len(cnt) < 4:
                 continue
 
             x, y, cw, ch = cv2.boundingRect(cnt)
@@ -566,7 +566,7 @@ def detect_scale_bar(
         contours, _ = cv2.findContours(sat_bw, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         for cnt in contours:
-            if len(cnt) < 4:
+            if len(cnt) < 5:
                 continue
 
             x, y, cw, ch = cv2.boundingRect(cnt)
@@ -578,7 +578,7 @@ def detect_scale_bar(
             if aspect < 2.0:
                 continue
 
-            if ch > min(200, rh * 0.2):
+            if ch > min(200, rh * 0.3):  # Max 200 pixels OR 30% of ROI height
                 continue
 
             if cw > rw * 0.7: # Wider than 70% of image width
@@ -599,21 +599,10 @@ def detect_scale_bar(
                 roi_h=rh, solidity=solidity, extent=extent, dist_edge=dist_edge,
             )
 
-            # NOTE: We use the same scoring function, but we only let saturation candidates win if they have a significantly higher score than the best grayscale candidate.
-            # bbox_full = (x + rx, y + ry, cw, ch)
+            bbox_full = (x + rx, y + ry, cw, ch)
             # bar_mask = _mask_from_bbox(img.shape, bbox_full, pad=2)
 
-            # if best is None or score > best[0] or (score == best[0] and cw > best[1]):
-            #     roi_vis = cv2.cvtColor(roi.copy(), cv2.COLOR_GRAY2BGR)
-            #     cv2.rectangle(roi_vis, (x, y), (x + cw, y + ch), (0, 255, 255), 2)
-            #     best = (score, cw, bbox_full, bar_mask, roi_vis)
-
-            # Only accept saturation candidate if it has a significantly higher score than the best grayscale candidate
-            bbox_full = (x + rx, y + ry, cw, ch)
-
-            # Use actual contour shape as mask, not rectangle.
-            # Rectangle masks over-mask when the bar is slightly rotated or
-            # has non-rectangular end caps, occluding adjacent particles.
+            # Use actual contour shape as mask, not rectangle
             bar_mask = np.zeros(img.shape[:2], dtype=np.uint8)
             cnt_shifted = cnt.copy()
             cnt_shifted[:, :, 0] += rx

@@ -153,6 +153,7 @@ class NanoparticleAnalyzer:
         only_morphology: str = None,
         interactive_roi: bool = False,
         interactive_scale: bool = False,
+        manual_threshold: float = None,
         # Morphology classification thresholds
         spherical_ar_max=1.5,
         rodlike_ar_min=1.8,
@@ -239,6 +240,7 @@ class NanoparticleAnalyzer:
         self.only_morphology = only_morphology  # Store morphology filtering option
         self.interactive_roi = bool(interactive_roi)  # Interactive ROI selection
         self.interactive_scale = bool(interactive_scale)  # Interactive scale bar line selection
+        self.manual_threshold = manual_threshold  # Manual threshold value (--threshold); None = use Otsu
 
         # Store results for batch aggregation
         self.batch_results = []  # Will hold DataFrames from each image
@@ -634,18 +636,39 @@ class NanoparticleAnalyzer:
             # - binary: boolean array (True = particle, False = background)
             # - original: grayscale image (for overlay visualization later)
             # binary, original = preprocess_image(img_path)
-            binary, original = preprocess_image(
-                img_path,
-                save_steps=(
-                    self.save_preprocessing_steps
-                    if hasattr(self, "save_preprocessing_steps")
-                    else False
-                ),
-                bright_particles=self.bright_particles,
-                norm_min=roi_norm_min,
-                norm_max=roi_norm_max,
-                otsu_threshold=roi_otsu_threshold,
-            )
+            # If manual_threshold is provided (--threshold), it short-circuits
+            # the preprocessing pipeline and takes precedence over the ROI-mode
+            # Otsu anchor. Intensity normalization anchors (norm_min/norm_max)
+            # aren't used either, because manual threshold is applied to the
+            # raw image.
+            if self.manual_threshold is not None:
+                binary, original = preprocess_image(
+                    img_path,
+                    save_steps=(
+                        self.save_preprocessing_steps
+                        if hasattr(self, "save_preprocessing_steps")
+                        else False
+                    ),
+                    bright_particles=self.bright_particles,
+                    manual_threshold=self.manual_threshold,
+                )
+                logging.info(
+                    f"Manual threshold mode: threshold={self.manual_threshold} "
+                    f"(Otsu, CLAHE, and normalization skipped)"
+                )
+            else:
+                binary, original = preprocess_image(
+                    img_path,
+                    save_steps=(
+                        self.save_preprocessing_steps
+                        if hasattr(self, "save_preprocessing_steps")
+                        else False
+                    ),
+                    bright_particles=self.bright_particles,
+                    norm_min=roi_norm_min,
+                    norm_max=roi_norm_max,
+                    otsu_threshold=roi_otsu_threshold,
+                )
 
             # -----------------------------------------------------------------
             # Step 5: Mask out scale bar region

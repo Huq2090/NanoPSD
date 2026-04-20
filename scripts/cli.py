@@ -371,6 +371,36 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     p.add_argument(
+        "--threshold",
+        type=str,
+        default=None,
+        metavar="VALUE",
+        help=(
+            "Manual segmentation threshold override.\n"
+            "\n"
+            "Accepts a numeric value between 0 and 255. Pixels darker than\n"
+            "this value become foreground (in default dark-particle mode);\n"
+            "brighter pixels become foreground when --bright-particles is\n"
+            "active. This REPLACES Otsu's automatic threshold selection.\n"
+            "\n"
+            "When to use:\n"
+            "  - Otsu fails because particles are a tiny minority class\n"
+            "    (e.g., small dark specks against large bright features)\n"
+            "  - You have a known-good threshold from ImageJ/Fiji\n"
+            "  - The image has three or more intensity classes and Otsu\n"
+            "    picks the wrong boundary\n"
+            "\n"
+            "The value is applied to the ORIGINAL image intensity (after\n"
+            "a light Gaussian blur to reduce JPEG noise). CLAHE and\n"
+            "normalization are skipped so the threshold you pass matches\n"
+            "the pixel values you see in an image viewer.\n"
+            "\n"
+            "Example:\n"
+            "  --threshold 40    (pixels darker than 40 become foreground)"
+        ),
+    )
+
+    p.add_argument(
         "--bright-particles",
         action="store_true",
         help=(
@@ -542,5 +572,27 @@ def parse_args():
             f"  --nm-per-pixel (no scale bar)\n"
             f"  --interactive-scale (draw with mouse)"
         )
+
+    # --threshold: validate and convert to a parsed form
+    # (future: will also accept the keyword "adaptive" in a follow-up PR)
+    if args.threshold is not None:
+        raw = args.threshold.strip().lower()
+        if raw == "adaptive":
+            parser.error(
+                "--threshold adaptive is not yet implemented. Use a numeric\n"
+                "value 0-255 for now, e.g., --threshold 40."
+            )
+        try:
+            val = float(raw)
+        except ValueError:
+            parser.error(
+                f"--threshold must be a number between 0 and 255; got {args.threshold!r}."
+            )
+        if not (0 <= val <= 255):
+            parser.error(
+                f"--threshold must be between 0 and 255; got {val}."
+            )
+        # Replace the string with a float, for the downstream analyzer
+        args.threshold = val
 
     return args

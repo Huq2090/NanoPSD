@@ -25,6 +25,7 @@ import numpy as np
 def preprocess_image(
     image_path, save_steps=False, output_dir="outputs/preprocessing_steps",
     bright_particles=False, norm_min=None, norm_max=None, otsu_threshold=None,
+    manual_threshold=None,
 ):
     """
     Preprocesses a microscopy image by enhancing contrast, smoothing, and thresholding.
@@ -52,6 +53,15 @@ def preprocess_image(
         from the full original image to a cropped region, so both use the
         same intensity cutoff. When None, Otsu runs normally on the
         input image's own histogram (existing behavior).
+    manual_threshold : float or None, optional (default=None)
+        When provided (via the --threshold CLI flag), use this as a
+        fixed binary threshold applied to the LIGHTLY BLURRED ORIGINAL
+        image, skipping CLAHE and normalization entirely. This preserves
+        the user's intensity-space intuition — the threshold value they
+        pass on the CLI is applied directly to the original image pixels.
+        Use this for images where Otsu fails, e.g., minority-class dark
+        particles. When None, the normal preprocessing pipeline runs.
+        Takes precedence over otsu_threshold when both are provided.
 
     Returns:
     --------
@@ -72,6 +82,35 @@ def preprocess_image(
     if save_steps:
         cv2.imwrite(f"{output_dir}/{base_name}_step1_original.png", image)
         print(f"Saved: {output_dir}/{base_name}_step1_original.png")
+
+    # Short-circuit: if user provided --threshold VALUE, skip the full
+    # normalize → CLAHE → blur pipeline. Instead, apply a light blur to
+    # reduce JPEG noise and apply the user's threshold directly to the
+    # ORIGINAL image. This preserves intensity-space intuition — the user
+    # sees the original image, picks a threshold based on those pixel
+    # values, and that's exactly the threshold that gets applied.
+    if manual_threshold is not None:
+        # Light Gaussian blur to reduce JPEG / sensor noise (same kernel
+        # as the regular path's Step 4, but applied to the raw image).
+        blurred = cv2.GaussianBlur(image, (3, 3), 0)
+        if save_steps:
+            cv2.imwrite(f"{output_dir}/{base_name}_step2_manual_blur.png", blurred)
+            print(f"Saved: {output_dir}/{base_name}_step2_manual_blur.png")
+
+        _, binary = cv2.threshold(
+            blurred, float(manual_threshold), 255, cv2.THRESH_BINARY
+        )
+        if save_steps:
+            cv2.imwrite(f"{output_dir}/{base_name}_step3_manual_threshold.png", binary)
+            print(f"Saved: {output_dir}/{base_name}_step3_manual_threshold.png")
+
+        # Inversion logic is preserved (same as regular path).
+        if not bright_particles:
+            binary = 255 - binary
+        if save_steps:
+            cv2.imwrite(f"{output_dir}/{base_name}_step4_manual_inverted.png", binary)
+
+        return binary > 0, image
 
     # Step 2: Normalize to 8-bit intensity range (0-255)
     # When anchor values are provided (by interactive-ROI mode), use them so

@@ -14,6 +14,7 @@ It supports both **single-image** and **batch image** analysis, providing a modu
 - **Manual calibration mode** for images without scale bars (direct nm/pixel input)
 - **Interactive ROI selection** (`--interactive-roi`) for analyzing only part of an image
 - **Interactive scale bar calibration** (`--interactive-scale`) for drawing a scale line with the mouse when detection/OCR fails
+- **Manual threshold override** (`--threshold VALUE`) for images where Otsu fails (e.g., small dark particles among large bright features)
 - **Particle segmentation** using classical methods (Otsu thresholding, preprocessing filters)
 - **Size extraction & visualization** (histograms, plots, CSV export)
 - **Flexible particle filtering** with `--min-size` and `--max-size` (removes noise and false detections)
@@ -557,6 +558,45 @@ python3 nanopsd.py --mode single --input sample.tif --algo classical \
 ```
 ---
 
+### Optional: Manual Threshold Override
+
+By default, NanoPSD uses **Otsu's automatic thresholding** to decide which pixels are particles and which are background. Otsu works well when particles and background are balanced populations (~20–50% particles). It **fails** when:
+
+- Particles are a tiny minority class (<1% of pixels) — e.g., small dark specks between large bright features like mask holes or structural patterns
+- The image has three or more intensity classes, and the wrong pair dominates the histogram
+- You have a known-good threshold from another tool (ImageJ, Fiji) that you want to reuse
+
+For these cases, use `--threshold VALUE` to override Otsu with a specific threshold value (0–255):
+
+```bash
+python3 nanopsd.py --mode single --input image.tif --algo classical \
+    --min-size 50 --scale-bar-nm 200 --threshold 40
+```
+
+**How to pick a threshold value:**
+
+1. Open the image in an image viewer that shows pixel intensities (ImageJ, Fiji, or similar).
+2. Hover over a typical particle — note its intensity.
+3. Hover over the background around the particle — note its intensity.
+4. Pick a value between the two. Lean slightly toward the particle side if particles vary in darkness.
+
+**Example:** If particles are around 20–30 and background is around 70, try `--threshold 40`. Adjust if you get too many false positives (lower) or miss real particles (raise).
+
+**Behavior:**
+- Pixels **darker than** `VALUE` become foreground (default dark-particle mode)
+- With `--bright-particles`, pixels **brighter than** `VALUE` become foreground
+- CLAHE and intensity normalization are **skipped** when `--threshold` is active — the value you pass applies directly to the original image pixels, so the threshold you see in ImageJ matches the threshold you pass to NanoPSD
+- Composes with `--interactive-roi` (threshold is applied inside the ROI), `--bright-particles`, `--min-size`, `--max-size`, and all calibration methods
+
+**Tip:** Manual threshold often detects many small noise blobs. Combine with `--min-size 30` (or higher) to filter them out:
+
+```bash
+python3 nanopsd.py --mode single --input image.tif --algo classical \
+    --min-size 50 --max-size 500 --scale-bar-nm 200 --threshold 40
+```
+
+---
+
 ### Contrast Polarity Option
 
 By default, NanoPSD assumes nanoparticles appear darker than the background (dark-on-light contrast), which is common in electron microscopy images.
@@ -683,6 +723,7 @@ batch_images/
 | `--only-morphology` | Only report results for a specific morphology type | `--only-morphology spherical` | No |
 | `--interactive-roi` | Drag a rectangle on each image to select the analysis region | `--interactive-roi` | No |
 | `--interactive-scale` | Draw a line across the scale bar; type value and unit in terminal | `--interactive-scale` | One of these\* |
+| `--threshold`       | Manual segmentation threshold (0-255); overrides Otsu            | `--threshold 40`         | No       |
 
 Note: `--interactive-scale` is "one of these*" because it's a calibration method (mutually exclusive with the other three).
 
@@ -983,7 +1024,7 @@ Aggregate   :  327 ( 86.7%)  Avg:  13.61 nm
 4. **Use GPU** if available for EasyOCR
 
 ---
-
+````markdown
 ### Problem: Poor particle detection / segmentation
 
 **Potential issues:**
@@ -998,7 +1039,13 @@ Aggregate   :  327 ( 86.7%)  Avg:  13.61 nm
    python3 nanopsd.py --mode single --input image.tif --scale-bar-nm 200 --min-size 3 --max-size 200
 ```
 
----
+6. **Otsu picks the wrong threshold**: If your image has a minority-class of particles (e.g., small dark spots between large bright features), Otsu's automatic threshold misses them. Use `--threshold VALUE` to manually set the threshold (see the "Manual Threshold Override" section above):
+
+```bash
+   # Override Otsu with a manual threshold
+   python3 nanopsd.py --mode single --input image.tif --scale-bar-nm 200 --min-size 50 --threshold 40
+```
+````
 
 ### Problem: Images don't have scale bars
 

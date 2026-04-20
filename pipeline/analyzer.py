@@ -154,6 +154,9 @@ class NanoparticleAnalyzer:
         interactive_roi: bool = False,
         interactive_scale: bool = False,
         manual_threshold: float = None,
+        adaptive_threshold: bool = False,
+        adaptive_block_size: int = 51,
+        adaptive_c: int = 15,
         # Morphology classification thresholds
         spherical_ar_max=1.5,
         rodlike_ar_min=1.8,
@@ -241,6 +244,9 @@ class NanoparticleAnalyzer:
         self.interactive_roi = bool(interactive_roi)  # Interactive ROI selection
         self.interactive_scale = bool(interactive_scale)  # Interactive scale bar line selection
         self.manual_threshold = manual_threshold  # Manual threshold value (--threshold); None = use Otsu
+        self.adaptive_threshold = bool(adaptive_threshold)  # Use adaptive thresholding instead of Otsu
+        self.adaptive_block_size = int(adaptive_block_size)  # Block size for adaptive thresholding
+        self.adaptive_c = int(adaptive_c)  # C constant for adaptive thresholding
 
         # Store results for batch aggregation
         self.batch_results = []  # Will hold DataFrames from each image
@@ -636,12 +642,30 @@ class NanoparticleAnalyzer:
             # - binary: boolean array (True = particle, False = background)
             # - original: grayscale image (for overlay visualization later)
             # binary, original = preprocess_image(img_path)
-            # If manual_threshold is provided (--threshold), it short-circuits
-            # the preprocessing pipeline and takes precedence over the ROI-mode
-            # Otsu anchor. Intensity normalization anchors (norm_min/norm_max)
-            # aren't used either, because manual threshold is applied to the
-            # raw image.
-            if self.manual_threshold is not None:
+            # Dispatch to the appropriate preprocessing path based on
+            # which threshold override (if any) the user provided:
+            #   1. --threshold adaptive  -> adaptive Gaussian thresholding
+            #   2. --threshold VALUE     -> manual fixed threshold
+            #   3. (default)             -> CLAHE + Otsu, with optional
+            #                               ROI-mode normalization/Otsu anchors
+            if self.adaptive_threshold:
+                binary, original = preprocess_image(
+                    img_path,
+                    save_steps=(
+                        self.save_preprocessing_steps
+                        if hasattr(self, "save_preprocessing_steps")
+                        else False
+                    ),
+                    bright_particles=self.bright_particles,
+                    adaptive_threshold=True,
+                    adaptive_block_size=self.adaptive_block_size,
+                    adaptive_c=self.adaptive_c,
+                )
+                logging.info(
+                    f"Adaptive threshold mode: block_size={self.adaptive_block_size}, "
+                    f"C={self.adaptive_c} (Otsu, CLAHE, and normalization skipped)"
+                )
+            elif self.manual_threshold is not None:
                 binary, original = preprocess_image(
                     img_path,
                     save_steps=(

@@ -376,27 +376,65 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         metavar="VALUE",
         help=(
-            "Manual segmentation threshold override.\n"
+            "Segmentation threshold override.\n"
             "\n"
-            "Accepts a numeric value between 0 and 255. Pixels darker than\n"
-            "this value become foreground (in default dark-particle mode);\n"
-            "brighter pixels become foreground when --bright-particles is\n"
-            "active. This REPLACES Otsu's automatic threshold selection.\n"
+            "Accepts either:\n"
+            "  - A numeric value 0-255 (manual threshold)\n"
+            "  - The keyword 'adaptive' (local adaptive thresholding)\n"
+            "\n"
+            "Both REPLACE Otsu's automatic threshold selection.\n"
+            "\n"
+            "Manual threshold (--threshold 40):\n"
+            "  Pixels darker than 40 become foreground (dark-particle\n"
+            "  mode). The value is applied to the ORIGINAL image — CLAHE\n"
+            "  and normalization are skipped so the value you pass\n"
+            "  matches pixel values in ImageJ/Fiji.\n"
+            "\n"
+            "Adaptive threshold (--threshold adaptive):\n"
+            "  Each pixel is compared against the mean of its local\n"
+            "  neighborhood. Handles uneven illumination and\n"
+            "  minority-class particles without needing to pick an\n"
+            "  exact value. Tune via --adaptive-block-size (default 51,\n"
+            "  must be odd) and --adaptive-c (default 15).\n"
             "\n"
             "When to use:\n"
-            "  - Otsu fails because particles are a tiny minority class\n"
-            "    (e.g., small dark specks against large bright features)\n"
-            "  - You have a known-good threshold from ImageJ/Fiji\n"
-            "  - The image has three or more intensity classes and Otsu\n"
-            "    picks the wrong boundary\n"
+            "  - Manual: you have a known-good threshold from ImageJ\n"
+            "  - Adaptive: uneven lighting or the image has more than\n"
+            "    two intensity classes (e.g., bright structural features\n"
+            "    + gray matrix + dark particles)\n"
             "\n"
-            "The value is applied to the ORIGINAL image intensity (after\n"
-            "a light Gaussian blur to reduce JPEG noise). CLAHE and\n"
-            "normalization are skipped so the threshold you pass matches\n"
-            "the pixel values you see in an image viewer.\n"
-            "\n"
-            "Example:\n"
-            "  --threshold 40    (pixels darker than 40 become foreground)"
+            "Examples:\n"
+            "  --threshold 40\n"
+            "  --threshold adaptive\n"
+            "  --threshold adaptive --adaptive-block-size 101 --adaptive-c 10"
+        ),
+    )
+
+    p.add_argument(
+        "--adaptive-block-size",
+        type=int,
+        default=None,
+        metavar="SIZE",
+        help=(
+            "Block size for adaptive thresholding (only used with\n"
+            "--threshold adaptive). Must be an odd integer >= 3.\n"
+            "Default: 51. Larger = averages over a wider area (less\n"
+            "responsive to small features); smaller = more responsive\n"
+            "but noisier."
+        ),
+    )
+
+    p.add_argument(
+        "--adaptive-c",
+        type=int,
+        default=None,
+        metavar="C",
+        help=(
+            "Constant subtracted from the local mean in adaptive\n"
+            "thresholding (only used with --threshold adaptive).\n"
+            "Default: 15. Larger = more conservative (fewer blobs);\n"
+            "smaller = more permissive (more blobs, more noise).\n"
+            "Typical range: 5-25."
         ),
     )
 
@@ -573,26 +611,49 @@ def parse_args():
             f"  --interactive-scale (draw with mouse)"
         )
 
-    # --threshold: validate and convert to a parsed form
-    # (future: will also accept the keyword "adaptive" in a follow-up PR)
+    # --threshold: validate and convert to a parsed form.
+    # Accepts either the keyword "adaptive" or a numeric value 0-255.
+    # The parsed form is either the string "adaptive" or a float.
     if args.threshold is not None:
         raw = args.threshold.strip().lower()
         if raw == "adaptive":
+            # Substitute real defaults for the sentinels, then validate
+            if args.adaptive_block_size is None:
+                args.adaptive_block_size = 51
+            if args.adaptive_c is None:
+                args.adaptive_c = 15
+            if args.adaptive_block_size < 3:
+                parser.error(
+                    f"--adaptive-block-size must be >= 3; got {args.adaptive_block_size}."
+                )
+            if args.adaptive_block_size % 2 == 0:
+                parser.error(
+                    f"--adaptive-block-size must be an ODD integer; got "
+                    f"{args.adaptive_block_size}. Try {args.adaptive_block_size + 1}."
+                )
+            args.threshold = "adaptive"
+        else:
+            try:
+                val = float(raw)
+            except ValueError:
+                parser.error(
+                    f"--threshold must be 'adaptive' or a number 0-255; "
+                    f"got {args.threshold!r}."
+                )
+            if not (0 <= val <= 255):
+                parser.error(
+                    f"--threshold must be between 0 and 255; got {val}."
+                )
+            # Replace the string with a float, for the downstream analyzer
+            args.threshold = val
+    else:
+        # If user passed adaptive tuning flags without --threshold adaptive,
+        # that's an error — the flags have no effect otherwise.
+        if args.adaptive_block_size is not None or args.adaptive_c is not None:
             parser.error(
-                "--threshold adaptive is not yet implemented. Use a numeric\n"
-                "value 0-255 for now, e.g., --threshold 40."
+                "--adaptive-block-size and --adaptive-c can only be used with\n"
+                "--threshold adaptive. Add '--threshold adaptive' to enable\n"
+                "adaptive mode, or omit these flags to use Otsu (default)."
             )
-        try:
-            val = float(raw)
-        except ValueError:
-            parser.error(
-                f"--threshold must be a number between 0 and 255; got {args.threshold!r}."
-            )
-        if not (0 <= val <= 255):
-            parser.error(
-                f"--threshold must be between 0 and 255; got {val}."
-            )
-        # Replace the string with a float, for the downstream analyzer
-        args.threshold = val
 
     return args

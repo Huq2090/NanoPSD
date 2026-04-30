@@ -14,6 +14,7 @@ It supports both **single-image** and **batch image** analysis, providing a modu
 - **Manual calibration mode** for images without scale bars (direct nm/pixel input)
 - **Interactive ROI selection** (`--interactive-roi`) for analyzing only part of an image
 - **Interactive scale bar calibration** (`--interactive-scale`) for drawing a scale line with the mouse when detection/OCR fails
+- **Manual and adaptive thresholding** (`--threshold VALUE` or `--threshold adaptive`) for images where Otsu fails (e.g., small dark particles among large bright features, or images with uneven lighting)
 - **Particle segmentation** using classical methods (Otsu thresholding, preprocessing filters)
 - **Size extraction & visualization** (histograms, plots, CSV export)
 - **Flexible particle filtering** with `--min-size` and `--max-size` (removes noise and false detections)
@@ -141,8 +142,7 @@ NanoPSD/
     │   ├── {image}_circular_equivalent.{ext}        # Circular equivalent contours
     │   ├── {image}_elliptical_equivalent.{ext}      # Elliptical fit contours
     │   ├── {image}_all_contour_types.{ext}          # Combined contour comparison
-    │    ── {image_name}_true_circular.{ext}         # True contour and circular equivalent combined
-    │   ├── {image_name}_morphology_overlay.{ext}    # Morphology classification overlayed
+    │   ├── {image_name}_true_circular.{ext}         # True contour and circular equivalent combined
     │   │
     │   └── # Batch Mode Outputs:
     │       ├── batch_boxplot_comparison.png          # Size distribution box plots
@@ -211,9 +211,6 @@ NanoPSD/
     ├── requirements.txt
     └── imglab_environment.yml
 ```
-
----
-
 ---
 
 ## Morphology Classification
@@ -557,6 +554,84 @@ python3 nanopsd.py --mode single --input sample.tif --algo classical \
 ```
 ---
 
+### Optional: Threshold Override (Manual or Adaptive)
+
+By default, NanoPSD uses **Otsu's automatic thresholding** to decide which pixels are particles and which are background. Otsu works well when particles and background are balanced populations (~20–50% particles). It **fails** when:
+
+- Particles are a tiny minority class (<1% of pixels) — e.g., small dark specks between large bright features like mask holes or structural patterns
+- The image has three or more intensity classes, and the wrong pair dominates the histogram
+- Illumination is uneven across the image (vignetting, gradient lighting)
+- You have a known-good threshold from another tool (ImageJ, Fiji) that you want to reuse
+
+For these cases, use `--threshold` to override Otsu. The flag accepts **two kinds of arguments**:
+
+#### Option 1: Manual Threshold — `--threshold VALUE`
+
+A fixed numeric threshold (0–255) applied to every pixel:
+
+```bash
+python3 nanopsd.py --mode single --input image.tif --algo classical \
+    --min-size 50 --scale-bar-nm 200 --threshold 40
+```
+
+**How to pick a value:**
+
+1. Open the image in an image viewer that shows pixel intensities (ImageJ, Fiji, or similar).
+2. Hover over a typical particle — note its intensity.
+3. Hover over the background around the particle — note its intensity.
+4. Pick a value between the two. Lean slightly toward the particle side if particles vary in darkness.
+
+**Example:** If particles are around 20–30 and background is around 70, try `--threshold 40`. Adjust if you get too many false positives (lower) or miss real particles (raise).
+
+#### Option 2: Adaptive Threshold — `--threshold adaptive`
+
+Each pixel is compared against the mean of its local neighborhood. No single value to pick — handles uneven lighting automatically:
+
+```bash
+python3 nanopsd.py --mode single --input image.tif --algo classical \
+    --min-size 50 --scale-bar-nm 200 --threshold adaptive
+```
+
+**Tuning (optional):**
+
+```bash
+# Use a larger neighborhood (averages over more pixels)
+python3 nanopsd.py --mode single --input image.tif --algo classical \
+    --min-size 50 --scale-bar-nm 200 \
+    --threshold adaptive --adaptive-block-size 101 --adaptive-c 10
+```
+
+| Flag | Default | Effect |
+|---|---|---|
+| `--adaptive-block-size` | 51 | Neighborhood size. Must be odd integer ≥ 3. Larger = less responsive to small features. |
+| `--adaptive-c` | 15 | Constant subtracted from the local mean. Larger = more conservative (fewer blobs). Typical: 5–25. |
+
+**Important limitation of adaptive mode:** adaptive thresholding finds **local deviations**. It works well for detecting small bright or dark features, but **not for detecting large uniform regions**. If you need to detect big bright features (e.g., the interiors of large circles), use `--threshold VALUE` instead.
+
+#### When to use each option
+
+| Situation | Recommended |
+|---|---|
+| Known particle intensity range from ImageJ/Fiji | `--threshold VALUE` |
+| Uneven illumination across the image | `--threshold adaptive` |
+| Images with 3+ intensity classes | Try both — adaptive often works without tuning |
+| Detecting large uniform bright/dark regions | `--threshold VALUE` (adaptive won't see interiors) |
+| Multiple images from the same microscope | `--threshold VALUE` for consistency, or `--threshold adaptive` for robustness |
+
+#### Behavior common to both options
+
+- `--bright-particles` inverts detection direction (bright pixels become foreground) for both manual and adaptive modes
+- CLAHE and intensity normalization are **skipped** in both modes — the override is applied to the raw image (after a light Gaussian blur to reduce noise)
+- Composes with `--interactive-roi` (threshold is applied inside the ROI), `--min-size`, `--max-size`, and all calibration methods
+- Size filters matter: both overrides often produce many small blobs. Combine with `--min-size 30` (or higher) to filter noise:
+
+```bash
+python3 nanopsd.py --mode single --input image.tif --algo classical \
+    --min-size 50 --max-size 500 --scale-bar-nm 200 --threshold 40
+```
+
+---
+
 ### Contrast Polarity Option
 
 By default, NanoPSD assumes nanoparticles appear darker than the background (dark-on-light contrast), which is common in electron microscopy images.
@@ -683,6 +758,9 @@ batch_images/
 | `--only-morphology` | Only report results for a specific morphology type | `--only-morphology spherical` | No |
 | `--interactive-roi` | Drag a rectangle on each image to select the analysis region | `--interactive-roi` | No |
 | `--interactive-scale` | Draw a line across the scale bar; type value and unit in terminal | `--interactive-scale` | One of these\* |
+| `--threshold`         | Segmentation threshold override: numeric (0-255) or `adaptive`   | `--threshold 40` or `--threshold adaptive` | No       |
+| `--adaptive-block-size` | Block size for adaptive threshold (odd, ≥3); used with `--threshold adaptive` | `--adaptive-block-size 101` | No       |
+| `--adaptive-c`        | Constant C for adaptive threshold; used with `--threshold adaptive` | `--adaptive-c 10`        | No       |
 
 Note: `--interactive-scale` is "one of these*" because it's a calibration method (mutually exclusive with the other three).
 
@@ -983,7 +1061,6 @@ Aggregate   :  327 ( 86.7%)  Avg:  13.61 nm
 4. **Use GPU** if available for EasyOCR
 
 ---
-
 ### Problem: Poor particle detection / segmentation
 
 **Potential issues:**
@@ -998,7 +1075,15 @@ Aggregate   :  327 ( 86.7%)  Avg:  13.61 nm
    python3 nanopsd.py --mode single --input image.tif --scale-bar-nm 200 --min-size 3 --max-size 200
 ```
 
----
+6. **Otsu picks the wrong threshold**: If your image has a minority-class of particles (e.g., small dark spots between large bright features), or uneven lighting, Otsu's automatic threshold misses particles. Use `--threshold` to override it (see the "Threshold Override" section above):
+
+```bash
+   # Manual: you know a good threshold value
+   python3 nanopsd.py --mode single --input image.tif --scale-bar-nm 200 --min-size 50 --threshold 40
+
+   # Adaptive: works without needing to pick a value; handles uneven lighting
+   python3 nanopsd.py --mode single --input image.tif --scale-bar-nm 200 --min-size 50 --threshold adaptive
+```
 
 ### Problem: Images don't have scale bars
 

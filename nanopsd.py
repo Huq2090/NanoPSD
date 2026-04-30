@@ -262,6 +262,19 @@ def main() -> None:
         interactive_roi=args.interactive_roi,
         # Interactive scale bar line selection (optional)
         interactive_scale=args.interactive_scale,
+        # Segmentation threshold overrides (optional).
+        # args.threshold is either None, a float (manual), or "adaptive"
+        # after CLI validation.
+        manual_threshold=(
+            args.threshold if isinstance(args.threshold, float) else None
+        ),
+        adaptive_threshold=(args.threshold == "adaptive"),
+        adaptive_block_size=(
+            args.adaptive_block_size if args.adaptive_block_size is not None else 51
+        ),
+        adaptive_c=(
+            args.adaptive_c if args.adaptive_c is not None else 15
+        ),
         # Morphology classification thresholds
         spherical_ar_max=thresholds["spherical_ar_max"],
         rodlike_ar_min=thresholds["rodlike_ar_min"],

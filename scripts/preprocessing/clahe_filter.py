@@ -25,6 +25,8 @@ import numpy as np
 def preprocess_image(
     image_path, save_steps=False, output_dir="outputs/preprocessing_steps",
     bright_particles=False, norm_min=None, norm_max=None, otsu_threshold=None,
+    manual_threshold=None,
+    adaptive_threshold=False, adaptive_block_size=51, adaptive_c=15,
 ):
     """
     Preprocesses a microscopy image by enhancing contrast, smoothing, and thresholding.
@@ -52,6 +54,36 @@ def preprocess_image(
         from the full original image to a cropped region, so both use the
         same intensity cutoff. When None, Otsu runs normally on the
         input image's own histogram (existing behavior).
+    manual_threshold : float or None, optional (default=None)
+        When provided (via the --threshold CLI flag), use this as a
+        fixed binary threshold applied to the LIGHTLY BLURRED ORIGINAL
+        image, skipping CLAHE and normalization entirely. This preserves
+        the user's intensity-space intuition — the threshold value they
+        pass on the CLI is applied directly to the original image pixels.
+        Use this for images where Otsu fails, e.g., minority-class dark
+        particles. When None, the normal preprocessing pipeline runs.
+        Takes precedence over otsu_threshold when both are provided.
+    adaptive_threshold : bool, optional (default=False)
+        When True (via --threshold adaptive), use OpenCV's adaptive
+        Gaussian thresholding instead of Otsu. Each pixel is compared
+        against the mean of its local neighborhood (of size
+        adaptive_block_size), with adaptive_c subtracted. Good for images
+        with uneven lighting or minority-class particles where a single
+        global threshold can't capture all particles. CLAHE and
+        normalization are skipped (adaptive thresholding is already a
+        local method — double-adapting produces noise). Takes precedence
+        over both manual_threshold and otsu_threshold.
+    adaptive_block_size : int, optional (default=51)
+        Size of the local neighborhood used by adaptive thresholding.
+        Must be an odd integer >= 3. Larger values average over a wider
+        area (less responsive to small features); smaller values are
+        more responsive but can be noisier.
+    adaptive_c : int, optional (default=15)
+        Constant subtracted from the local mean before comparison.
+        Larger values make the threshold more conservative (fewer
+        pixels are marked foreground); smaller values are more
+        permissive (more pixels marked foreground, including more
+        noise). Typical range: 5-25.
 
     Returns:
     --------
@@ -72,6 +104,67 @@ def preprocess_image(
     if save_steps:
         cv2.imwrite(f"{output_dir}/{base_name}_step1_original.png", image)
         print(f"Saved: {output_dir}/{base_name}_step1_original.png")
+
+    # Short-circuit: if user provided --threshold adaptive, use OpenCV's
+    # adaptive Gaussian thresholding. Skip normalize, CLAHE, and Otsu —
+    # adaptive thresholding is ALREADY a local method, so running CLAHE
+    # before it double-adapts and amplifies matrix texture noise (verified
+    # empirically: CLAHE gave 17,456 noise blobs vs 1,263 real particles
+    # on a test image). Only a light blur + adaptiveThreshold + inversion.
+    if adaptive_threshold:
+        # Light Gaussian blur to reduce JPEG / sensor noise.
+        blurred = cv2.GaussianBlur(image, (3, 3), 0)
+        if save_steps:
+            cv2.imwrite(f"{output_dir}/{base_name}_step2_adaptive_blur.png", blurred)
+            print(f"Saved: {output_dir}/{base_name}_step2_adaptive_blur.png")
+
+        # cv2.adaptiveThreshold with THRESH_BINARY_INV means:
+        # pixels DARKER than (local_mean - C) become foreground.
+        # That's the default dark-particle case.
+        # For bright particles, use THRESH_BINARY (pixels BRIGHTER than
+        # local_mean + C become foreground) — NO post-inversion needed
+        # since the polarity is embedded in the threshold type.
+        thresh_type = (
+            cv2.THRESH_BINARY if bright_particles else cv2.THRESH_BINARY_INV
+        )
+        binary = cv2.adaptiveThreshold(
+            blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            thresh_type, int(adaptive_block_size), int(adaptive_c)
+        )
+        if save_steps:
+            cv2.imwrite(f"{output_dir}/{base_name}_step3_adaptive_threshold.png", binary)
+            print(f"Saved: {output_dir}/{base_name}_step3_adaptive_threshold.png")
+
+        return binary > 0, image
+
+    # Short-circuit: if user provided --threshold VALUE, skip the full
+    # normalize → CLAHE → blur pipeline. Instead, apply a light blur to
+    # reduce JPEG noise and apply the user's threshold directly to the
+    # ORIGINAL image. This preserves intensity-space intuition — the user
+    # sees the original image, picks a threshold based on those pixel
+    # values, and that's exactly the threshold that gets applied.
+    if manual_threshold is not None:
+        # Light Gaussian blur to reduce JPEG / sensor noise (same kernel
+        # as the regular path's Step 4, but applied to the raw image).
+        blurred = cv2.GaussianBlur(image, (3, 3), 0)
+        if save_steps:
+            cv2.imwrite(f"{output_dir}/{base_name}_step2_manual_blur.png", blurred)
+            print(f"Saved: {output_dir}/{base_name}_step2_manual_blur.png")
+
+        _, binary = cv2.threshold(
+            blurred, float(manual_threshold), 255, cv2.THRESH_BINARY
+        )
+        if save_steps:
+            cv2.imwrite(f"{output_dir}/{base_name}_step3_manual_threshold.png", binary)
+            print(f"Saved: {output_dir}/{base_name}_step3_manual_threshold.png")
+
+        # Inversion logic is preserved (same as regular path).
+        if not bright_particles:
+            binary = 255 - binary
+        if save_steps:
+            cv2.imwrite(f"{output_dir}/{base_name}_step4_manual_inverted.png", binary)
+
+        return binary > 0, image
 
     # Step 2: Normalize to 8-bit intensity range (0-255)
     # When anchor values are provided (by interactive-ROI mode), use them so

@@ -869,7 +869,12 @@ def plot_batch_comparison(df_all, df_summary):
     n_images = len(images)
 
     # Figure 1: Box plot comparison
-    fig, ax = plt.subplots(1, 1, figsize=(12, 6))  # Single subplot
+    # Width scales with number of images: 2.5 inches per image, minimum 8 inches.
+    # The +3 reserves room for the legend that sits outside the axes on the right.
+    # This avoids huge gaps between boxes when there are only 2-3 images, while
+    # still accommodating large batches.
+    fig_width = max(8, 2.5 * n_images + 3)
+    fig, ax = plt.subplots(1, 1, figsize=(fig_width, 6))
 
     # Prepare data for box plot
     data_by_image = [
@@ -945,7 +950,22 @@ def plot_batch_comparison(df_all, df_summary):
             label="Whiskers (1.5×IQR)",
         ),
     ]
-    ax.legend(handles=legend_elements, loc="upper right", fontsize=16, framealpha=0.7)
+    # Place legend OUTSIDE the plot area (to the right) so it never overlaps
+    # boxes, whiskers, or outliers regardless of the number of images or the
+    # spread of the data.
+    #
+    # bbox_to_anchor=(1.02, 1.0) anchors the upper-left CORNER of the legend
+    # box to a point just past the right edge of the axes, at the top. The
+    # legend then grows down-right from there. (loc="upper left" looks
+    # paradoxical but is matplotlib's standard idiom for outside-the-axes
+    # legends — `loc` selects which corner of the legend touches the anchor.)
+    ax.legend(
+        handles=legend_elements,
+        loc="upper left",
+        bbox_to_anchor=(1.02, 1.0),
+        fontsize=14,
+        framealpha=0.9,
+    )
 
     plt.tight_layout()
     out_path = "outputs/figures/batch_boxplot_comparison.png"
